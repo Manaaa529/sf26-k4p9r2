@@ -286,10 +286,13 @@ function planEditorHTML(p, idx){
   </div>`;
 }
 
-function openPlanEditor(idx){
+/* prefill を渡すと下書き入りで開く（イベントタブの「スケジュールに追加」用） */
+function openPlanEditor(idx, prefill){
   planIdx = (idx==null ? null : +idx);
   const init = planIdx==null
-    ? {date: (typeof curDate!=='undefined' && curDate) || (PROF && PROF.arrive && PROF.arrive.date) || ''}
+    ? Object.assign(
+        {date: (typeof curDate!=='undefined' && curDate) || (PROF && PROF.arrive && PROF.arrive.date) || ''},
+        prefill||{})
     : (PROF.plans||[])[planIdx];
   const el=document.getElementById('setup');
   el.innerHTML=planEditorHTML(init, planIdx);
@@ -303,6 +306,7 @@ function refreshAll(){
   applyProfile();
   if(!TRIP.days.some(d=>d.date===curDate)) curDate = TRIP.days[0].date;
   renderDtabs(); renderDay(); renderPlan(); renderInfo(); renderPrep();
+  renderXp();   // 行きたいリストの「日程に追加済み」表示を更新するため
 }
 
 function wirePlanEditor(){

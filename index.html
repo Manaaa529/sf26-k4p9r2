@@ -320,7 +320,7 @@ h3.sub{margin:22px 0 10px;font-size:14px;font-weight:700;color:var(--cream)}
 .rowhd .cv{flex:none;color:var(--dim);font-size:13px;transition:transform .2s;padding-top:2px}
 .row2.open .cv{transform:rotate(90deg);color:var(--gold)}
 .row2.open .rn{color:var(--gold)}
-.row2.done .rn::after{content:" ✓";color:var(--ok);font-weight:900}
+.row2.fav .rn::after{content:" ♥";color:var(--red);font-weight:900}
 .det{display:none;padding:2px 14px 15px 14px}
 .row2.open .det{display:block}
 .det .dd{font-size:13.5px;line-height:1.7;color:var(--cream);margin-bottom:11px}
@@ -333,7 +333,21 @@ h3.sub{margin:22px 0 10px;font-size:14px;font-weight:700;color:var(--cream)}
 .det .acts button{border:1px solid var(--line);background:var(--ink3);color:var(--cream);
   border-radius:8px;padding:8px 13px;font-size:12px;font-weight:700;cursor:pointer}
 .det .acts button.go{border-color:var(--plum-lt);color:var(--plum-lt)}
-.det .acts button.dn[aria-pressed=true]{background:var(--ok);border-color:var(--ok);color:#0B2A1E}
+.det .acts button.dn[aria-pressed=true]{background:var(--red);border-color:var(--red);color:#2A0B18}
+.det .acts button.sch{border-color:var(--gold);color:var(--gold)}
+/* 行きたいリスト */
+.favrow{display:flex;gap:10px;align-items:center;padding:11px 14px;
+  border-top:1px solid var(--line)}
+.favrow:first-of-type{border-top:0}
+.favrow .fb{flex:1;min-width:0}
+.favrow .fn{font-size:14px;font-weight:700;line-height:1.4}
+.favrow .fd{font-size:11.5px;color:var(--dim);margin-top:3px}
+.favrow .fa{display:flex;gap:6px;align-items:center;flex-shrink:0}
+.favrow .sch{border:1px solid var(--gold);background:transparent;color:var(--gold);
+  border-radius:8px;padding:7px 10px;font-size:11.5px;font-weight:700;cursor:pointer}
+.favrow .unf{border:1px solid var(--line);background:transparent;color:var(--red);
+  border-radius:8px;padding:7px 9px;font-size:13px;cursor:pointer;line-height:1}
+.favrow .fdone{font-size:11px;color:var(--ok);white-space:nowrap}
 .pin.hi i{outline:3px solid var(--gold);outline-offset:3px;animation:bp 1.1s ease-out 3}
 .pin.hi b{background:var(--gold);color:var(--ink);border-color:var(--gold)}
 @keyframes bp{0%{box-shadow:0 0 0 0 rgba(245,197,24,.65)}100%{box-shadow:0 0 0 22px rgba(245,197,24,0)}}
@@ -1269,10 +1283,13 @@ function planEditorHTML(p, idx){
   </div>`;
 }
 
-function openPlanEditor(idx){
+/* prefill を渡すと下書き入りで開く（イベントタブの「スケジュールに追加」用） */
+function openPlanEditor(idx, prefill){
   planIdx = (idx==null ? null : +idx);
   const init = planIdx==null
-    ? {date: (typeof curDate!=='undefined' && curDate) || (PROF && PROF.arrive && PROF.arrive.date) || ''}
+    ? Object.assign(
+        {date: (typeof curDate!=='undefined' && curDate) || (PROF && PROF.arrive && PROF.arrive.date) || ''},
+        prefill||{})
     : (PROF.plans||[])[planIdx];
   const el=document.getElementById('setup');
   el.innerHTML=planEditorHTML(init, planIdx);
@@ -1286,6 +1303,7 @@ function refreshAll(){
   applyProfile();
   if(!TRIP.days.some(d=>d.date===curDate)) curDate = TRIP.days[0].date;
   renderDtabs(); renderDay(); renderPlan(); renderInfo(); renderPrep();
+  renderXp();   // 行きたいリストの「日程に追加済み」表示を更新するため
 }
 
 function wirePlanEditor(){
@@ -1871,16 +1889,37 @@ function renderPrep(){
 window.openQR=()=>{};
 
 /* ---- XP ---- */
+/* sf2026-xp は GO の「やること」チェック専用。イベント行の記録には使わない */
 const XK='sf2026-xp', xpDone=(()=>{try{return JSON.parse(localStorage.getItem(XK))||{}}catch(e){return{}}})();
 const saveXp=()=>{try{localStorage.setItem(XK,JSON.stringify(xpDone))}catch(e){}};
+
+/* 行きたい（お気に入り）。あとで一覧に出すので、鍵だけでなく中身も持っておく。
+   {n:名前, a:場所, m/x/y:マップ座標, days:'金'等, t:開始時刻, time:表示用の時間} */
+const FK='sf2026-fav', favState=(()=>{try{return JSON.parse(localStorage.getItem(FK))||{}}catch(e){return{}}})();
+const saveFav=()=>{try{localStorage.setItem(FK,JSON.stringify(favState))}catch(e){}};
+const favKey=o=>`${evTab}|${o.n}`;
+const favCount=()=>Object.keys(favState).length;
+
 let evTab='xp', xpSeg='always', xpDay='全', xpOpen=null;
 const DAYS3=['金','土','日'];
+const DAY_DATE={'金':'2026-08-28','土':'2026-08-29','日':'2026-08-30'};
 
-/* 行を1つ描く。key があれば「行った」記録の対象になる */
+/* 「行きたい」に入れた項目からスケジュール用の下書きを作る */
+function schedDraft(f){
+  const only = DAYS3.filter(d=>(f.days||'').includes(d));
+  return {date: only.length===1 ? DAY_DATE[only[0]] : DAY_DATE['金'],
+          time: /^\d{1,2}:\d{2}$/.test(f.t||'') ? f.t : '',
+          icon:'🎫', title:f.n, place:f.a||'',
+          spot: f.m ? {m:f.m, x:f.x, y:f.y, name:f.a} : null,
+          map:  f.m ? 'moscone' : ''};
+}
+
+/* 行を1つ描く */
 function xpRow(o){
-  const k=o.key||'', on=k&&xpDone[k], op=xpOpen===o.uid;
-  const L=o.l||{};
-  return `<div class="row2${op?' open':''}${on?' done':''}" data-uid="${o.uid}">
+  const L=o.l||{}, k=favKey(o), on=!!favState[k], op=xpOpen===o.uid;
+  const pay=esc(JSON.stringify({n:o.n, a:L.a||'', m:L.m||'', x:L.x, y:L.y,
+                                days:o.days||'', t:o.t||'', time:o.time||''}));
+  return `<div class="row2${op?' open':''}${on?' fav':''}" data-uid="${o.uid}">
     <div class="rowhd" data-tog="${o.uid}">
       ${o.t?`<div class="rt">${esc(o.t)}</div>`:''}
       <div class="rn">${o.badge||''}${esc(o.n)}</div>
@@ -1895,20 +1934,23 @@ function xpRow(o){
       ${o.extra?`<div class="meta"><span class="k">メモ</span><span class="v">${esc(o.extra)}</span></div>`:''}
       <div class="acts">
         ${L.m?`<button class="go" data-jump="${L.m}|${L.x}|${L.y}|${esc(L.a)}">マップで見る</button>`:''}
-        ${k?`<button class="dn" data-done="${k}" aria-pressed="${on?'true':'false'}">${
-          on?'行った ✓':'行ったことにする'}</button>`:''}
+        <button class="dn" data-fav="${esc(k)}" data-pay="${pay}" aria-pressed="${on?'true':'false'}">${
+          on?'♥ 行きたい':'♡ 行きたい'}</button>
+        <button class="sch" data-sched="${esc(k)}" data-pay="${pay}">📅 スケジュールに追加</button>
       </div>
     </div></div>`;
 }
 
 function renderXp(){
   const X=TRIP.xp; let u=0; const uid=()=>'x'+(u++);
-  const TT={xp:'PokémonXP',unite:'ポケモンユナイト',go:'ポケモンGO'};
+  const TT={xp:'PokémonXP',unite:'ポケモンユナイト',go:'ポケモンGO',fav:'行きたいリスト'};
+  const n=favCount();
   let h=`<section style="padding-bottom:10px"><h2 class="sec">${TT[evTab]}</h2>
     <div class="seg" style="padding:0">
       <button data-e="xp" aria-selected="${evTab==='xp'}">XP</button>
       <button data-e="unite" aria-selected="${evTab==='unite'}">UNITE</button>
       <button data-e="go" aria-selected="${evTab==='go'}">GO</button>
+      <button data-e="fav" aria-selected="${evTab==='fav'}">♥${n?' '+n:''}</button>
     </div>
     ${evTab==='xp'?`<div class="seg" style="padding:10px 0 0">
       <button data-s="always" aria-selected="${xpSeg==='always'}">予約不要</button>
@@ -1916,6 +1958,7 @@ function renderXp(){
       <button data-s="side" aria-selected="${xpSeg==='side'}">サイドイベント</button>
     </div>`:''}</section>`;
 
+  if(evTab==='fav'){ h+=renderFav(); paintXp(h); return; }
   if(evTab==='unite'){ h+=renderUnite(uid); }
   if(evTab==='go'){ h+=renderGo(uid); }
   if(evTab!=='xp'){ paintXp(h); return; }
@@ -2000,6 +2043,46 @@ function renderXp(){
   paintXp(h);
 }
 
+/* ---- 行きたいリスト（曜日ごと） ---- */
+function renderFav(){
+  const keys=Object.keys(favState);
+  if(!keys.length) return `<section style="padding-top:0">
+    <div class="banner"><b>まだ空です</b>XP・UNITE・GO の項目を開いて「♡ 行きたい」を押すと、
+    ここに集まります。時間が決まっているものは「📅 スケジュールに追加」で日程にも入ります。</div>
+    </section>`;
+
+  /* 予定に入れ済みかどうかを名前で照合する */
+  const inPlan = n => (PROF && PROF.plans || []).some(p=>p.title===n);
+
+  const groups=[['金','金曜（8/28）'],['土','土曜（8/29）'],['日','日曜（8/30）'],['','日付が決まっていない']];
+  let h='<section style="padding-top:0">';
+  groups.forEach(([d,label])=>{
+    const ks=keys.filter(k=>{
+      const f=favState[k], only=DAYS3.filter(x=>(f.days||'').includes(x));
+      return d ? (only.length===1 && only[0]===d) : only.length!==1;
+    });
+    if(!ks.length) return;
+    h+=`<div class="grp" style="margin-top:12px"><div class="gh">${label}
+      <span class="n">${ks.length}</span></div>`;
+    ks.forEach(k=>{
+      const f=favState[k], done=inPlan(f.n);
+      h+=`<div class="favrow">
+        <div class="fb"><div class="fn">${esc(f.n)}</div>
+          <div class="fd">${esc([f.t||f.time, f.a].filter(Boolean).join('　'))}</div></div>
+        <div class="fa">
+          ${done?'<span class="fdone">日程に追加済み</span>'
+                :`<button class="sch" data-sched="${esc(k)}">📅 追加</button>`}
+          <button class="unf" data-unfav="${esc(k)}" aria-label="行きたいから外す">♥</button>
+        </div></div>`;
+    });
+    h+='</div>';
+  });
+  h+=`<p style="font-size:11.5px;color:var(--dim);margin:14px 0 0;line-height:1.7">
+    「📅 追加」で日程に入れると、時刻を自分で決められます。
+    一日中やっているものは、行きたい時間を入れてください。</p></section>`;
+  return h;
+}
+
 function paintXp(h){
   $('v-xp').innerHTML=h;
   $('v-xp').querySelectorAll('[data-e]').forEach(b=>b.onclick=()=>{
@@ -2017,9 +2100,26 @@ function paintXp(h){
       if(el) el.scrollIntoView({block:'center',behavior:'smooth'});
     });
   });
-  $('v-xp').querySelectorAll('[data-done]').forEach(b=>b.onclick=e=>{
-    e.stopPropagation(); const k=b.dataset.done;
-    xpDone[k]=!xpDone[k]; saveXp(); renderXp(); });
+  $('v-xp').querySelectorAll('[data-fav]').forEach(b=>b.onclick=e=>{
+    e.stopPropagation(); const k=b.dataset.fav;
+    if(favState[k]) delete favState[k];
+    else { try{ favState[k]=JSON.parse(b.dataset.pay); }catch(err){ favState[k]={n:k}; } }
+    saveFav(); renderXp();
+    toast(favState[k]?'行きたいに入れました':'行きたいから外しました');
+  });
+  $('v-xp').querySelectorAll('[data-unfav]').forEach(b=>b.onclick=e=>{
+    e.stopPropagation(); delete favState[b.dataset.unfav]; saveFav(); renderXp();
+    toast('行きたいから外しました');
+  });
+  $('v-xp').querySelectorAll('[data-sched]').forEach(b=>b.onclick=e=>{
+    e.stopPropagation();
+    if(!PROF){ toast('先に「準備」タブで自分の予定を登録してください'); return; }
+    let f=null;
+    try{ f=b.dataset.pay ? JSON.parse(b.dataset.pay) : favState[b.dataset.sched]; }
+    catch(err){ f=favState[b.dataset.sched]; }
+    if(!f){ toast('この項目は追加できません'); return; }
+    openPlanEditor(null, schedDraft(f));
+  });
   $('v-xp').querySelectorAll('[data-jump]').forEach(b=>b.onclick=e=>{
     e.stopPropagation();
     const [m,x,y,label]=b.dataset.jump.split('|');
