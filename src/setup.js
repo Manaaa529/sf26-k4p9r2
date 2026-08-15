@@ -310,7 +310,10 @@ function insertByTime(items, it){
 }
 
 function addPlans(map){
-  (PROF.plans||[]).forEach(p=>{
+  /* pi は PROF.plans の添字。タイムラインから直接その予定を直せるようにするため。
+     plans は保存時に日時順へ並べ替えてから applyProfile するので、ここでの添字と
+     「準備」タブの一覧の添字は一致する */
+  (PROF.plans||[]).forEach((p, pi)=>{
     if(!p.date || !p.title) return;
     if(!map[p.date]){
       const st = stayOn(p.date);
@@ -320,7 +323,7 @@ function addPlans(map){
     /* placeholder は消さない。イベント日の案内文はここに入っていて、
        予定を足したあとも読む価値がある（見出しだけ renderDay 側で切り替える） */
     const it = {t:p.time||'', type:'event', icon:p.icon||'📌', title:p.title,
-                place:p.place||'', note:p.note||'', mine:true,
+                place:p.place||'', note:p.note||'', mine:true, pi,
                 spot:p.spot||null, map:p.map||''};
     if(p.time) insertByTime(d.items, it); else d.items.push(it);
   });

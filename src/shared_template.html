@@ -127,6 +127,7 @@ h3.sub{margin:22px 0 10px;font-size:14px;font-weight:700;color:var(--cream)}
 }
 .chip:active{background:var(--ink3)}
 .chip[aria-expanded=true]{border-color:var(--gold);color:var(--gold)}
+.chip.mine{border-style:dashed;color:var(--dim)}
 
 /* 現在地からの方角 */
 .geobox{
@@ -732,6 +733,12 @@ document.addEventListener('click', e=>{
   const a=b.dataset.jump.split('|');
   jumpToMap(a[0], +a[1], +a[2], a.slice(3).join('|'));
 });
+/* 自分で足した予定は、その場から直す・削除できる */
+document.addEventListener('click', e=>{
+  const b=e.target.closest('#v-day [data-plan]');
+  if(!b) return;
+  openPlanEditor(+b.dataset.plan);
+});
 function renderDay(){
   const d=TRIP.days.find(x=>x.date===curDate) || TRIP.days[0];
   if(!d){ $('v-day').innerHTML=''; return; }
@@ -763,10 +770,11 @@ function renderDay(){
             it.dur?`<span class="dur">${esc(it.dur)}</span>`:''}</div>
           ${it.place?`<div class="place">${esc(it.place)}</div>`:''}
           ${it.note?`<div class="note">${esc(it.note)}</div>`:''}
-          ${(it.map||it.qr||it.spot)?`<div class="chips">${
+          ${(it.map||it.qr||it.spot||it.mine)?`<div class="chips">${
             it.spot?`<button class="chip" data-jump="${esc(it.spot.m)}|${it.spot.x}|${it.spot.y}|${esc(it.spot.name)}">🗺 会場マップ</button>`:''}${
             it.map?mapChip(it.map):''}${
-            it.qr?'<button class="chip" onclick="openQR()">📱 QRを表示</button>':''}</div>`:''}
+            it.qr?'<button class="chip" onclick="openQR()">📱 QRを表示</button>':''}${
+            it.mine?`<button class="chip mine" data-plan="${it.pi}">✏️ 直す・削除</button>`:''}</div>`:''}
         </div></div>`;
     });
     h+='</div>';
