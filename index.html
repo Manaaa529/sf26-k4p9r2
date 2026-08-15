@@ -1330,6 +1330,7 @@ function planEditorHTML(p, idx){
   p = p || {};
   const v = k => p[k]==null ? '' : String(p[k]).replace(/"/g,'&quot;');
   const cur = p.icon || PLAN_ICONS[0];
+  const w = p.win && p.win.f && p.win.t ? p.win : null;   // 実施時間の窓
   return `
   <div class="su-wrap">
     <div class="su-head">
@@ -1344,10 +1345,18 @@ function planEditorHTML(p, idx){
       <div class="row">
         <div class="f"><label for="p_date">日付</label>
           <input type="date" id="p_date" value="${v('date')}"></div>
-        <div class="f"><label for="p_time">時刻（任意）</label>
-          <input type="time" id="p_time" value="${v('time')}"></div>
+        <div class="f"><label for="p_time">時刻${w?'':'（任意）'}</label>
+          <input type="time" id="p_time" value="${v('time')}"${
+            w?` min="${w.f}" max="${w.t}"`:''}></div>
       </div>
-      <p class="hint">時刻を空にすると、その日のいちばん下にまとめて出します。</p>
+      <p class="hint">${
+        w ? (w.f===w.t
+              ? `このイベントの開始時刻は <b>${w.f}</b> です。ほかの時刻では登録できません。`
+              : `このイベントの実施時間は <b>${w.f}〜${w.t}</b> です。この範囲で選んでください。`)
+          : (p.hint
+              ? `実施時間の目安：${String(p.hint).replace(/</g,'&lt;')}<br>
+                 正確な時間割は未公開なので、時刻はご自分で決めてください。`
+              : '時刻を空にすると、その日のいちばん下にまとめて出します。')}</p>
     </div>
 
     <div class="su-sec">
@@ -1382,9 +1391,12 @@ function planEditorHTML(p, idx){
   </div>`;
 }
 
+let planDraft = null;   // 新規のときの下書き（実施時間の窓を保持するため）
+
 /* prefill を渡すと下書き入りで開く（イベントタブの「スケジュールに追加」用） */
 function openPlanEditor(idx, prefill){
   planIdx = (idx==null ? null : +idx);
+  planDraft = (idx==null ? (prefill||null) : null);
   const init = planIdx==null
     ? Object.assign(
         {date: (typeof curDate!=='undefined' && curDate) || (PROF && PROF.arrive && PROF.arrive.date) || ''},
@@ -1418,7 +1430,11 @@ function wirePlanEditor(){
      ユーザーが自分で選び直したあとは上書きしない */
   const title=el.querySelector('#p_title'), place=el.querySelector('#p_place');
   const spotSel=el.querySelector('#p_spot'), hint=el.querySelector('#p_spothint');
-  let autoMap = (planIdx==null ? '' : ((PROF.plans||[])[planIdx]||{}).map || '');
+  /* 実施時間の窓と目安テキストは、下書き／保存済みの予定から引き継ぐ */
+  const src = planIdx==null ? (planDraft||{}) : ((PROF.plans||[])[planIdx]||{});
+  const win = src.win && src.win.f && src.win.t ? src.win : null;
+  const hint0 = src.hint || '';
+  let autoMap = (planIdx==null ? (planDraft&&planDraft.map)||'' : src.map || '');
   let touched = spotSel.value !== '';        // 既に紐づいているものは自動で動かさない
   spotSel.onchange=()=>{
     touched=true;
@@ -1463,9 +1479,21 @@ function wirePlanEditor(){
     const p = {date:g('p_date'), time:g('p_time'), icon,
                title:g('p_title').trim(), place:g('p_place').trim(),
                note:g('p_note').trim(), code:g('p_code').trim(),
-               spot, map: spot ? 'moscone' : autoMap};
+               spot, map: spot ? 'moscone' : autoMap,
+               win: win || null, hint: hint0 || ''};
     if(!p.date){ toast('日付を入れてください'); return; }
     if(!p.title){ toast('予定の名前を入れてください'); return; }
+    /* 実施していない時間に入れさせない */
+    if(win){
+      if(!p.time){ toast(`時刻を入れてください（${win.f}${win.f===win.t?'':'〜'+win.t}）`); return; }
+      const m=t=>{const[a,b]=t.split(':').map(Number); return a*60+(b||0);};
+      if(m(p.time) < m(win.f) || m(p.time) > m(win.t)){
+        toast(win.f===win.t
+          ? `このイベントの開始時刻は ${win.f} です`
+          : `実施時間は ${win.f}〜${win.t} です。この範囲で選んでください`);
+        return;
+      }
+    }
 
     PROF.plans = PROF.plans || [];
     if(planIdx==null) PROF.plans.push(p); else PROF.plans[planIdx]=p;
@@ -2028,21 +2056,35 @@ let evTab='xp', xpSeg='always', xpDay='全', xpOpen=null;
 const DAYS3=['金','土','日'];
 const DAY_DATE={'金':'2026-08-28','土':'2026-08-29','日':'2026-08-30'};
 
+/* 実施時間の窓を決める。
+   1. データに h:{f,t} があればそれ（common.json 側で入れる。時間割が出たらここを埋める）
+   2. 無くても開始時刻が分かっているもの（ワークショップ等）はその時刻に固定
+   3. どちらも無ければ窓なし。代わりに説明文をヒントとして出す */
+function evWindow(o){
+  if(o.h && o.h.f && o.h.t) return {f:o.h.f, t:o.h.t};
+  if(/^\d{1,2}:\d{2}$/.test(o.t||'')) return {f:o.t, t:o.t};
+  return null;
+}
+
 /* 「行きたい」に入れた項目からスケジュール用の下書きを作る */
 function schedDraft(f){
   const only = DAYS3.filter(d=>(f.days||'').includes(d));
+  const win = f.win || null;
   return {date: only.length===1 ? DAY_DATE[only[0]] : DAY_DATE['金'],
-          time: /^\d{1,2}:\d{2}$/.test(f.t||'') ? f.t : '',
+          time: win ? win.f : '',
           icon:'🎫', title:f.n, place:f.a||'',
           spot: f.m ? {m:f.m, x:f.x, y:f.y, name:f.a} : null,
-          map:  f.m ? 'moscone' : ''};
+          map:  f.m ? 'moscone' : '',
+          win, hint: f.hint||''};
 }
 
 /* 行を1つ描く */
 function xpRow(o){
   const L=o.l||{}, k=favKey(o), on=!!favState[k], op=xpOpen===o.uid;
   const pay=esc(JSON.stringify({n:o.n, a:L.a||'', m:L.m||'', x:L.x, y:L.y,
-                                days:o.days||'', t:o.t||'', time:o.time||''}));
+                                days:o.days||'', t:o.t||'', time:o.time||'',
+                                win:evWindow(o),
+                                hint:[o.time, o.d].filter(Boolean).join(' ／ ')}));
   return `<div class="row2${op?' open':''}${on?' fav':''}" data-uid="${o.uid}">
     <div class="rowhd" data-tog="${o.uid}">
       ${o.t?`<div class="rt">${esc(o.t)}</div>`:''}
@@ -2093,8 +2135,8 @@ function renderXp(){
       定員に達すると入れないものはあります。項目をタップすると、何をする場所か・どこにあるかが出ます。</div>`;
     X.always.forEach((g,gi)=>{
       h+=`<div class="grp" style="margin-top:14px"><div class="gh">${esc(g.g)}</div>`;
-      g.items.forEach((it,i)=>h+=xpRow({uid:uid(),key:'a'+gi+'-'+i,n:it.n,d:it.d,l:it.l,
-        time:'開催中は随時（3日とも）'}));
+      g.items.forEach((it,i)=>h+=xpRow({uid:uid(),key:'a'+gi+'-'+i,n:it.n,d:it.d,l:it.l,h:it.h,
+        time:it.h?`${it.h.f}〜${it.h.t}（3日とも）`:'開催中は随時（3日とも）'}));
       h+='</div>';
     });
 
@@ -2131,7 +2173,7 @@ function renderXp(){
       <h3 class="sub">ワークショップ（3日とも同じ時間）</h3>
       <div class="grp${R&&R.status==='none'?' lost':''}">`;
     X.workshops.filter(w=>xpDay==='全'||w.d.includes(xpDay)).forEach(w=>
-      h+=xpRow({uid:uid(),t:w.t,n:w.n,d:w.m||'',l:w.l,days:w.d,
+      h+=xpRow({uid:uid(),t:w.t,n:w.n,d:w.m||'',l:w.l,days:w.d,h:w.h,
         time:`${w.t}〜（金土日とも同じ時間）`,
         extra: X.lot_result && X.lot_result.status==='none'
           ? 'この枠は落選。当日キャンセルの案内が出ることはある'
@@ -2139,7 +2181,7 @@ function renderXp(){
     h+=`</div><h3 class="sub">ゲスト枠（日替わり・その日限り）</h3>
       <div class="grp${R&&R.status==='none'?' lost':''}">`;
     X.guests.filter(g=>xpDay==='全'||g.d.includes(xpDay)).forEach(g=>
-      h+=xpRow({uid:uid(),t:g.t,n:g.n,l:g.l,days:g.d,
+      h+=xpRow({uid:uid(),t:g.t,n:g.n,l:g.l,days:g.d,h:g.h,
         badge:`<span class="kk ${g.k}">${g.k==='s'?'サイン':'グリート'}</span>`,
         time:`${g.t}〜 ／ ${g.d}曜のみ`,
         extra: X.lot_result && X.lot_result.status==='none'
@@ -2259,7 +2301,7 @@ function renderUnite(uid){
   let h=`<section style="padding-top:0">
     <div class="banner"><b>観戦</b>グループステージは8組。試合の時間割はまだ出ていません。
     出たら日程タブに入れます。</div><h3 class="sub">どこで見るか</h3><div class="grp">`;
-  U.watch.forEach(w=>h+=xpRow({uid:uid(),n:w.n,d:w.d,l:w.l,time:'—'}));
+  U.watch.forEach(w=>h+=xpRow({uid:uid(),n:w.n,d:w.d,l:w.l,h:w.h,time:'—'}));
   h+=`</div><h3 class="sub">グループ組み合わせ</h3>
     <div class="legend">日本のチームを金色にしてあります。5チームが5つの組に分かれているので、
     どの組を追うかで見る時間が変わります。</div><div style="height:12px"></div><div class="grid2">`;
@@ -2297,7 +2339,8 @@ function renderGo(uid){
   h+=`</div><h3 class="sub">GO Pass の特典</h3><div class="grp">`;
   G.pass.forEach(p=>h+=xpRow({uid:uid(),n:p.n,d:p.d,time:'期間中'}));
   h+=`</div><h3 class="sub">会場のGO関連</h3><div class="grp">`;
-  G.places.forEach(p=>h+=xpRow({uid:uid(),n:p.n,d:p.d,l:p.l,time:'開催中は随時'}));
+  G.places.forEach(p=>h+=xpRow({uid:uid(),n:p.n,d:p.d,l:p.l,h:p.h,
+    time:p.h?`${p.h.f}〜${p.h.t}`:'開催中は随時'}));
   h+=`</div><section style="padding-top:14px"><p style="font-size:11px;color:var(--dim);margin:0">
     ${esc(G.note)}</p></section></section>`;
   return h;

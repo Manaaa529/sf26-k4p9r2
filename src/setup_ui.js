@@ -249,6 +249,7 @@ function planEditorHTML(p, idx){
   p = p || {};
   const v = k => p[k]==null ? '' : String(p[k]).replace(/"/g,'&quot;');
   const cur = p.icon || PLAN_ICONS[0];
+  const w = p.win && p.win.f && p.win.t ? p.win : null;   // 実施時間の窓
   return `
   <div class="su-wrap">
     <div class="su-head">
@@ -263,10 +264,18 @@ function planEditorHTML(p, idx){
       <div class="row">
         <div class="f"><label for="p_date">日付</label>
           <input type="date" id="p_date" value="${v('date')}"></div>
-        <div class="f"><label for="p_time">時刻（任意）</label>
-          <input type="time" id="p_time" value="${v('time')}"></div>
+        <div class="f"><label for="p_time">時刻${w?'':'（任意）'}</label>
+          <input type="time" id="p_time" value="${v('time')}"${
+            w?` min="${w.f}" max="${w.t}"`:''}></div>
       </div>
-      <p class="hint">時刻を空にすると、その日のいちばん下にまとめて出します。</p>
+      <p class="hint">${
+        w ? (w.f===w.t
+              ? `このイベントの開始時刻は <b>${w.f}</b> です。ほかの時刻では登録できません。`
+              : `このイベントの実施時間は <b>${w.f}〜${w.t}</b> です。この範囲で選んでください。`)
+          : (p.hint
+              ? `実施時間の目安：${String(p.hint).replace(/</g,'&lt;')}<br>
+                 正確な時間割は未公開なので、時刻はご自分で決めてください。`
+              : '時刻を空にすると、その日のいちばん下にまとめて出します。')}</p>
     </div>
 
     <div class="su-sec">
@@ -301,9 +310,12 @@ function planEditorHTML(p, idx){
   </div>`;
 }
 
+let planDraft = null;   // 新規のときの下書き（実施時間の窓を保持するため）
+
 /* prefill を渡すと下書き入りで開く（イベントタブの「スケジュールに追加」用） */
 function openPlanEditor(idx, prefill){
   planIdx = (idx==null ? null : +idx);
+  planDraft = (idx==null ? (prefill||null) : null);
   const init = planIdx==null
     ? Object.assign(
         {date: (typeof curDate!=='undefined' && curDate) || (PROF && PROF.arrive && PROF.arrive.date) || ''},
@@ -337,7 +349,11 @@ function wirePlanEditor(){
      ユーザーが自分で選び直したあとは上書きしない */
   const title=el.querySelector('#p_title'), place=el.querySelector('#p_place');
   const spotSel=el.querySelector('#p_spot'), hint=el.querySelector('#p_spothint');
-  let autoMap = (planIdx==null ? '' : ((PROF.plans||[])[planIdx]||{}).map || '');
+  /* 実施時間の窓と目安テキストは、下書き／保存済みの予定から引き継ぐ */
+  const src = planIdx==null ? (planDraft||{}) : ((PROF.plans||[])[planIdx]||{});
+  const win = src.win && src.win.f && src.win.t ? src.win : null;
+  const hint0 = src.hint || '';
+  let autoMap = (planIdx==null ? (planDraft&&planDraft.map)||'' : src.map || '');
   let touched = spotSel.value !== '';        // 既に紐づいているものは自動で動かさない
   spotSel.onchange=()=>{
     touched=true;
@@ -382,9 +398,21 @@ function wirePlanEditor(){
     const p = {date:g('p_date'), time:g('p_time'), icon,
                title:g('p_title').trim(), place:g('p_place').trim(),
                note:g('p_note').trim(), code:g('p_code').trim(),
-               spot, map: spot ? 'moscone' : autoMap};
+               spot, map: spot ? 'moscone' : autoMap,
+               win: win || null, hint: hint0 || ''};
     if(!p.date){ toast('日付を入れてください'); return; }
     if(!p.title){ toast('予定の名前を入れてください'); return; }
+    /* 実施していない時間に入れさせない */
+    if(win){
+      if(!p.time){ toast(`時刻を入れてください（${win.f}${win.f===win.t?'':'〜'+win.t}）`); return; }
+      const m=t=>{const[a,b]=t.split(':').map(Number); return a*60+(b||0);};
+      if(m(p.time) < m(win.f) || m(p.time) > m(win.t)){
+        toast(win.f===win.t
+          ? `このイベントの開始時刻は ${win.f} です`
+          : `実施時間は ${win.f}〜${win.t} です。この範囲で選んでください`);
+        return;
+      }
+    }
 
     PROF.plans = PROF.plans || [];
     if(planIdx==null) PROF.plans.push(p); else PROF.plans[planIdx]=p;
