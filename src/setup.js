@@ -4,7 +4,7 @@
    ============================================================ */
 
 const PK = 'sf2026-profile';
-const PROFILE_V = 1;          // 保存データの構造バージョン
+const PROFILE_V = 2;          // 保存データの構造バージョン
 let PROF = null;
 
 /* 古い構造で保存されたデータを現行構造に寄せる。
@@ -16,7 +16,12 @@ function migrateProfile(p){
   if(v === 0){          // v を持たない初期配布分。構造は v1 と同じなので印を付けるだけ
     v = 1;
   }
+  if(v === 1){          // v2: 自分で足す予定（plans）を追加
+    p.plans = [];
+    v = 2;
+  }
   p.v = v;
+  if(!Array.isArray(p.plans)) p.plans = [];   // 未知の版から来た場合の保険
   return p;             // v > PROFILE_V（新しい版で保存）はそのまま使う。消さない
 }
 
@@ -175,6 +180,35 @@ const EVENT_DAYS = [
    ph:'決勝は Chase Center。Moscone ではないので移動が要ります。'}
 ];
 
+/* ---------- 自分で足した予定 ---------- */
+
+/* 時刻順に差し込む。先頭の時刻なし項目（その日の警告など）より前には入れない */
+function insertByTime(items, it){
+  const m = mins(it.t);
+  let idx = 0;
+  for(let i=0; i<items.length; i++){
+    if(items[i].t && mins(items[i].t) <= m) idx = i+1;
+  }
+  if(idx === 0){ while(idx < items.length && !items[idx].t) idx++; }
+  items.splice(idx, 0, it);
+}
+
+function addPlans(map){
+  (PROF.plans||[]).forEach(p=>{
+    if(!p.date || !p.title) return;
+    if(!map[p.date]){
+      const st = stayOn(p.date);
+      map[p.date] = {date:p.date, label:'フリー', base: st?st.name:'', items:[]};
+    }
+    const d = map[p.date];
+    /* placeholder は消さない。イベント日の案内文はここに入っていて、
+       予定を足したあとも読む価値がある（見出しだけ renderDay 側で切り替える） */
+    const it = {t:p.time||'', type:'event', icon:p.icon||'📌', title:p.title,
+                place:p.place||'', note:p.note||'', mine:true};
+    if(p.time) insertByTime(d.items, it); else d.items.push(it);
+  });
+}
+
 /* ---------- 全日程を組み立てる ---------- */
 function buildDays(){
   const map = {};
@@ -204,6 +238,8 @@ function buildDays(){
   if(map['2026-08-29']) map['2026-08-29'].items.unshift({t:'', type:'warn',
     title:'GO：PokémonXP配信を30分見る', icon:'📺',
     note:'twitch.tv/PokemonXP を30分視聴で Cosmog-chu のリサーチ。この日だけの条件'});
+
+  addPlans(map);   // 空白日を埋める前に入れる（予定だけの日も1日として立てるため）
 
   /* 滞在期間の空白日を埋める */
   const all = Object.values(map).map(d=>d.date).sort();
@@ -238,6 +274,11 @@ function buildBookings(){
     dir:s.lat?null:s.name}));
   (PROF.extras||[]).forEach(x=>out.push({cat:'その他', name:x.name,
     detail:x.detail||'', code:x.code||'', note:x.note||''}));
+  /* 予約番号を入れた予定は、ここにも控えとして出す */
+  (PROF.plans||[]).forEach(p=>{ if(!p.code) return;
+    out.push({cat:'予定', name:`${p.icon||'📌'} ${p.title}`,
+      detail:[p.date, p.time, p.place].filter(Boolean).join('　'),
+      code:p.code, note:p.note||''}); });
   return out;
 }
 

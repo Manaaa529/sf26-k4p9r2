@@ -114,7 +114,8 @@ function readSetup(){
     depart:{date:g('d_date'), time:g('d_time'), flight:g('d_flight').trim()},
     stays: stays.length ? stays : [{name:'宿', walk:10}],
     badge: g('b_time') ? {date:g('b_date'), time:g('b_time')} : null,
-    extras: (PROF && PROF.extras) || []
+    extras: (PROF && PROF.extras) || [],
+    plans : (PROF && PROF.plans)  || []    // 自分で足した予定は消さない
   };
 }
 
@@ -185,6 +186,181 @@ function wireSetup(){
     renderDtabs(); renderDay(); renderPlan(); renderInfo(); renderPrep();
     closeSetup(); go('day'); window.scrollTo(0,0);
     toast('タイムラインを作りました');
+  };
+}
+
+/* ============================================================
+   予定の追加・編集（セットアップ画面を通さずに単体で足せるようにする）
+   ============================================================ */
+
+const PLAN_ICONS = ['📌','🎫','🛍','🍽','🚕','📺'];
+let planIdx = null;          // 編集中の index。新規は null
+
+function planEditorHTML(p, idx){
+  p = p || {};
+  const v = k => p[k]==null ? '' : String(p[k]).replace(/"/g,'&quot;');
+  const cur = p.icon || PLAN_ICONS[0];
+  return `
+  <div class="su-wrap">
+    <div class="su-head">
+      <div class="su-kicker">SF 2026</div>
+      <h1>${idx==null ? '予定を追加' : '予定を直す'}</h1>
+      <p>入れた予定は「今日」と「日程」のタイムラインに時刻順で並びます。
+      バッジ受け取りやポケモンセンターの枠、食事の予約など、なんでもどうぞ。</p>
+    </div>
+
+    <div class="su-sec">
+      <h2>いつ</h2>
+      <div class="row">
+        <div class="f"><label for="p_date">日付</label>
+          <input type="date" id="p_date" value="${v('date')}"></div>
+        <div class="f"><label for="p_time">時刻（任意）</label>
+          <input type="time" id="p_time" value="${v('time')}"></div>
+      </div>
+      <p class="hint">時刻を空にすると、その日のいちばん下にまとめて出します。</p>
+    </div>
+
+    <div class="su-sec">
+      <h2>なに</h2>
+      <div class="f"><label for="p_title">予定の名前</label>
+        <input type="text" id="p_title" placeholder="例）ポケモンセンター 予約枠"
+          value="${v('title')}" autocomplete="off"></div>
+      <div class="f"><label>アイコン</label>
+        <div class="icnrow">${PLAN_ICONS.map(i=>
+          `<button type="button" class="icn${i===cur?' on':''}" data-icn="${i}">${i}</button>`
+        ).join('')}</div></div>
+      <div class="f"><label for="p_place">場所（任意）</label>
+        <input type="text" id="p_place" placeholder="例）Moscone West"
+          value="${v('place')}" autocomplete="off"></div>
+      <div class="f"><label for="p_note">メモ（任意）</label>
+        <input type="text" id="p_note" placeholder="集合場所、持ち物、同行者など"
+          value="${v('note')}" autocomplete="off"></div>
+      <div class="f"><label for="p_code">予約番号（任意）</label>
+        <input type="text" id="p_code" placeholder="入れると「情報」タブの予約にも並びます"
+          value="${v('code')}" autocomplete="off"></div>
+    </div>
+
+    <div class="su-foot">
+      <button class="su-go" id="pSave">${idx==null ? '追加する' : '保存する'}</button>
+      ${idx==null ? '' : '<button class="su-danger" id="pDel">この予定を削除</button>'}
+      <button class="su-cancel" id="pCancel">やめる</button>
+    </div>
+  </div>`;
+}
+
+function openPlanEditor(idx){
+  planIdx = (idx==null ? null : +idx);
+  const init = planIdx==null
+    ? {date: (typeof curDate!=='undefined' && curDate) || (PROF && PROF.arrive && PROF.arrive.date) || ''}
+    : (PROF.plans||[])[planIdx];
+  const el=document.getElementById('setup');
+  el.innerHTML=planEditorHTML(init, planIdx);
+  el.classList.add('on');
+  document.body.style.overflow='hidden';
+  wirePlanEditor();
+}
+
+/* 予定を入れ替えたあと、全タブを描き直す */
+function refreshAll(){
+  applyProfile();
+  if(!TRIP.days.some(d=>d.date===curDate)) curDate = TRIP.days[0].date;
+  renderDtabs(); renderDay(); renderPlan(); renderInfo(); renderPrep();
+}
+
+function wirePlanEditor(){
+  const el=document.getElementById('setup');
+  let icon = PLAN_ICONS[0];
+  const on = el.querySelector('.icn.on'); if(on) icon = on.dataset.icn;
+  el.querySelectorAll('[data-icn]').forEach(b=>b.onclick=()=>{
+    el.querySelectorAll('[data-icn]').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on'); icon=b.dataset.icn;
+  });
+
+  el.querySelector('#pCancel').onclick=()=>closeSetup();
+
+  const del = el.querySelector('#pDel');
+  if(del) del.onclick=()=>{
+    PROF.plans.splice(planIdx,1);
+    saveProfile(); refreshAll(); closeSetup();
+    toast('予定を削除しました');
+  };
+
+  el.querySelector('#pSave').onclick=()=>{
+    const g = id => (document.getElementById(id)||{}).value || '';
+    const p = {date:g('p_date'), time:g('p_time'), icon,
+               title:g('p_title').trim(), place:g('p_place').trim(),
+               note:g('p_note').trim(), code:g('p_code').trim()};
+    if(!p.date){ toast('日付を入れてください'); return; }
+    if(!p.title){ toast('予定の名前を入れてください'); return; }
+
+    PROF.plans = PROF.plans || [];
+    if(planIdx==null) PROF.plans.push(p); else PROF.plans[planIdx]=p;
+    PROF.plans.sort((a,b)=>
+      (a.date+(a.time||'99:99')) < (b.date+(b.time||'99:99')) ? -1 : 1);
+
+    saveProfile();
+    refreshAll();
+    curDate = p.date;                 // 入れた予定の日を開いて結果を見せる
+    renderDtabs(); renderDay();
+    closeSetup(); go('day'); window.scrollTo(0,0);
+    toast(planIdx==null ? '予定を追加しました' : '予定を直しました');
+  };
+}
+
+/* ---------- バッジ枠だけを直す ---------- */
+function badgeEditorHTML(){
+  const b = (PROF && PROF.badge) || {};
+  const v = k => b[k]==null ? '' : String(b[k]).replace(/"/g,'&quot;');
+  return `
+  <div class="su-wrap">
+    <div class="su-head">
+      <div class="su-kicker">SF 2026</div>
+      <h1>バッジ受け取り</h1>
+      <p>予約した枠を入れると、そこを基準点にして宿を出る時刻を逆算します。
+      間に合わない時間になっていれば警告を出します。</p>
+    </div>
+    <div class="su-sec">
+      <h2>予約した枠</h2>
+      <div class="row">
+        <div class="f"><label for="b2_date">日付</label>
+          <input type="date" id="b2_date"
+            value="${v('date') || (PROF && PROF.arrive ? PROF.arrive.date : '')}"></div>
+        <div class="f"><label for="b2_time">時刻</label>
+          <input type="time" id="b2_time" value="${v('time')}"></div>
+      </div>
+      <p class="hint">まだ決まっていなければ空のままで大丈夫です。</p>
+    </div>
+    <div class="su-foot">
+      <button class="su-go" id="bSave">保存する</button>
+      ${b.time ? '<button class="su-danger" id="bClear">枠を取り消す</button>' : ''}
+      <button class="su-cancel" id="bCancel">やめる</button>
+    </div>
+  </div>`;
+}
+
+function openBadgeEditor(){
+  const el=document.getElementById('setup');
+  el.innerHTML=badgeEditorHTML();
+  el.classList.add('on');
+  document.body.style.overflow='hidden';
+
+  el.querySelector('#bCancel').onclick=()=>closeSetup();
+  const cl = el.querySelector('#bClear');
+  if(cl) cl.onclick=()=>{
+    PROF.badge=null; saveProfile(); refreshAll(); closeSetup();
+    toast('バッジ枠を取り消しました');
+  };
+  el.querySelector('#bSave').onclick=()=>{
+    const g = id => (document.getElementById(id)||{}).value || '';
+    const t=g('b2_time'), d=g('b2_date');
+    if(t && !d){ toast('日付を入れてください'); return; }
+    if(t && d < PROF.arrive.date){ toast('バッジ受け取りが到着日より前になっています'); return; }
+    PROF.badge = t ? {date:d, time:t} : null;
+    saveProfile(); refreshAll();
+    if(t) curDate = d;
+    renderDtabs(); renderDay();
+    closeSetup(); go('day'); window.scrollTo(0,0);
+    toast(t ? 'バッジ枠を保存しました' : 'バッジ枠を取り消しました');
   };
 }
 
