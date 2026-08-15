@@ -1,0 +1,252 @@
+/* ============================================================
+   セットアップ & タイムライン自動生成
+   個人データは端末の localStorage にのみ保存する
+   ============================================================ */
+
+const PK = 'sf2026-profile';
+const PROFILE_V = 1;          // 保存データの構造バージョン
+let PROF = null;
+
+/* 古い構造で保存されたデータを現行構造に寄せる。
+   構造を変えたら PROFILE_V を上げて、下に if(v===N){...v=N+1} を足す。
+   配布後に構造を変えても、入力済みの人の画面を壊さないためのもの。 */
+function migrateProfile(p){
+  if(!p || typeof p !== 'object') return null;
+  let v = +p.v || 0;
+  if(v === 0){          // v を持たない初期配布分。構造は v1 と同じなので印を付けるだけ
+    v = 1;
+  }
+  p.v = v;
+  return p;             // v > PROFILE_V（新しい版で保存）はそのまま使う。消さない
+}
+
+function loadProfile(){
+  let was = null;
+  try {
+    const raw = JSON.parse(localStorage.getItem(PK));
+    was = raw && typeof raw === 'object' ? (+raw.v || 0) : null;
+    PROF = migrateProfile(raw);
+  } catch(e){ PROF = null; }
+  if(PROF && was !== null && was < PROFILE_V) saveProfile();   // 移行結果を書き戻す
+  return PROF;
+}
+function saveProfile(){
+  try { if(PROF) PROF.v = PROFILE_V; localStorage.setItem(PK, JSON.stringify(PROF)); } catch(e){}
+}
+
+/* 所要時間の見積り（分） */
+const EST = {
+  immigration: [60, 120],   // 入国審査＋荷物
+  bartToCity : 30,          // SFO → Powell St
+  powellWalk : 7,           // Powell St → 一般的な宿
+  badgeQueue : [20, 40],    // バッジ受け取りの列
+  westToPC   : 4,           // Registration Hall → Pokémon Center
+  airportLead: 180          // 国際線は3時間前
+};
+
+const pad = n => String(n).padStart(2,'0');
+const hhmm = m => `${pad(Math.floor(((m%1440)+1440)%1440/60))}:${pad(((m%60)+60)%60)}`;
+const mins = t => { const [a,b]=String(t).split(':').map(Number); return a*60+(b||0); };
+
+/* 宿を日付から引く（複数登録に対応） */
+function stayOn(date){
+  if(!PROF || !PROF.stays || !PROF.stays.length) return null;
+  const s = PROF.stays.filter(x => (!x.from || x.from <= date) && (!x.to || date <= x.to));
+  return s[s.length-1] || PROF.stays[0];
+}
+
+/* ---------- 到着日のタイムラインを逆算で組む ---------- */
+function buildArrival(){
+  const a = PROF.arrive;               // {date, flight, time}
+  const b = PROF.badge;                // {date, time} 省略可
+  const stay = stayOn(a.date);
+  const walk = stay ? (+stay.walk || 10) : 10;
+  const items = [];
+
+  items.push({t:a.time, type:'event', icon:'✈', title:'SFO 到着',
+    place:'San Francisco International',
+    note:`${a.flight?a.flight+'。':''}日本時間だと翌日の午前2時ごろ`});
+
+  let cur = mins(a.time);
+  items.push({t:hhmm(cur+10), type:'move', title:'入国審査・荷物受取',
+    dur:`${EST.immigration[0]}〜${EST.immigration[1]}分`,
+    note:'Worlds週なので混雑想定。ここが読めない区間'});
+
+  cur = cur + 10 + EST.immigration[0];
+  items.push({t:hhmm(cur), type:'move', title:'BART で市内へ', dur:`約${EST.bartToCity}分`,
+    note:'SFO → Powell St。Clipperかクレカのタッチで乗れる', map:'powell'});
+
+  cur += EST.bartToCity;
+  items.push({t:hhmm(cur), type:'move', title:'Powell St から徒歩', dur:`${walk}分`});
+
+  cur += walk;
+  const hotelAt = cur;
+  items.push({t:hhmm(hotelAt), type:'event', icon:'🏨',
+    title:`${stay ? stay.name : '宿'} に荷物を置く`,
+    place: stay && stay.addr ? stay.addr : '',
+    note:'ここで一息つける', stay:true});
+
+  if(b && b.time){
+    const badge = mins(b.time);
+    const earliest = hotelAt + walk;          // 最短でも会場に着けない時刻
+    if(earliest > badge){
+      items.push({t:'', type:'warn', icon:'⚠', title:'バッジ枠に間に合いません',
+        note:`到着${a.time}からだと、最短でも${hhmm(earliest)}にしか Registration Hall に着けません。`
+           + `バッジ枠を${hhmm(earliest+10)}以降に取り直すか、宿に寄らず直行する前提で組み直してください。`});
+    }
+    const leave = badge - walk;
+    items.push({t:hhmm(leave), type:'move', title:'宿を出る', dur:`徒歩${walk}分`});
+    items.push({t:b.time, type:'anchor', icon:'🎫', title:'バッジ受け取り',
+      place:'Registration Hall / Moscone West', map:'moscone',
+      note:`今日の基準点。列は${EST.badgeQueue[0]}〜${EST.badgeQueue[1]}分見ておく`});
+    const pc = badge + EST.badgeQueue[1] + EST.westToPC;
+    items.push({t:hhmm(pc), type:'event', icon:'🛍', title:'Pokémon Center',
+      place:'Moscone West', map:'moscone', note:'入場にはバッジが必須'});
+  }
+  items.push({t:'', type:'free', title:'夕方以降フリー',
+    note:'時差ボケがくる時間帯。無理せず早めに休むのも手'});
+
+  /* 逆算のデッドライン */
+  let fb = null;
+  if(b && b.time && (hotelAt + walk) <= mins(b.time)){
+    const deadline = mins(b.time) - walk - EST.bartToCity - walk - 20;
+    fb = `バッジが${b.time}なら、SFOを${hhmm(deadline)}までに出れば間に合います。`
+       + `入国審査が押して${hhmm(mins(b.time)-30)}を過ぎそうなら、バッジは会期中いつでも取れるので`
+       + `ポケモンセンターを優先する判断もあり。`;
+  }
+  return {
+    date:a.date, label:'到着', base: stay ? stay.name : '',
+    anchor: (b&&b.time) ? {time:b.time, text:'Registration Hall 到着'} : null,
+    items, fallback: fb
+  };
+}
+
+/* ---------- 帰国日 ---------- */
+function buildDeparture(){
+  const d = PROF.depart;               // {date, flight, time}
+  if(!d || !d.time) return null;
+  const stay = stayOn(d.date);
+  const walk = stay ? (+stay.walk || 10) : 10;
+  const dep = mins(d.time);
+  const atAirport = dep - EST.airportLead;
+  const leave = atAirport - EST.bartToCity - 5 - walk;
+  return {
+    date:d.date, label:'帰国', base: stay ? `${stay.name} → SFO` : 'SFO',
+    anchor:{time:hhmm(leave), text:'宿を出る'},
+    items:[
+      {t:hhmm(leave), type:'anchor', icon:'🧳', title:`${stay?stay.name:'宿'} を出る`,
+       note:'チェックアウト期限ではなく、実際に動く時間。ここが今日の基準点', stay:true},
+      {t:hhmm(leave+walk), type:'move', title:'Powell St から BART',
+       dur:`約${EST.bartToCity+5}分`, note:'SFO 行き', map:'powell'},
+      {t:hhmm(atAirport), type:'event', icon:'✈', title:'SFO 到着',
+       note:`国際線なので${EST.airportLead/60}時間前`},
+      {t:d.time, type:'event', title:`${d.flight||'出発便'} 出発`}
+    ]
+  };
+}
+
+/* ---------- 宿の移動日 ---------- */
+function buildMoveDays(){
+  if(!PROF.stays || PROF.stays.length < 2) return [];
+  const out=[];
+  for(let i=1;i<PROF.stays.length;i++){
+    const from=PROF.stays[i-1], to=PROF.stays[i];
+    if(!to.from) continue;
+    out.push({date:to.from, label:'宿の移動', base:`→ ${to.name}`, items:[
+      {t:'11:00', type:'event', icon:'🧳', title:`${from.name} チェックアウト`},
+      {t:'11:15', type:'move', title:`${to.name} へ移動`, dur:'徒歩10分前後',
+       note:'距離があるならUber/Lyftも検討'},
+      {t:'11:30', type:'event', icon:'🏨', title:`${to.name} に荷物を預ける`,
+       place: to.addr||'', note:'チェックイン前でも預かってもらえる。手ぶらで動ける', stay:true},
+      {t:'', type:'free', title:'昼〜午後フリー', note:'荷物がないので身軽'},
+      {t: to.checkin||'15:00', type:'event', icon:'🔑', title:`${to.name} チェックイン`}
+    ]});
+  }
+  return out;
+}
+
+/* ---------- イベント3日分の枠 ---------- */
+const EVENT_DAYS = [
+  {date:'2026-08-28', label:'XP / Worlds Day 1',
+   ph:'North Lobby から入るとXP側が最短。予約不要のものはイベントタブに20件あります。'},
+  {date:'2026-08-29', label:'Day 2',
+   ph:'3日で一番セッションが多い日。パネルとミート＆グリートは抽選対象外なので狙うならこの日。GOのPokémonXP配信30分視聴もこの日だけ。'},
+  {date:'2026-08-30', label:'Championship Sunday',
+   ph:'決勝は Chase Center。Moscone ではないので移動が要ります。'}
+];
+
+/* ---------- 全日程を組み立てる ---------- */
+function buildDays(){
+  const map = {};
+  const add = d => { if(!d) return;
+    map[d.date] = map[d.date] ? Object.assign(map[d.date], d) : d; };
+
+  add(buildArrival());
+  buildMoveDays().forEach(add);
+  add(buildDeparture());
+
+  EVENT_DAYS.forEach(e=>{
+    if(map[e.date]){
+      map[e.date].label = map[e.date].label==='宿の移動'
+        ? `${e.label}・宿の移動` : e.label;
+      if(!map[e.date].items.length) map[e.date].placeholder = e.ph;
+    } else {
+      const st = stayOn(e.date);
+      map[e.date] = {date:e.date, label:e.label, base: st?st.name:'',
+                     items:[], placeholder:e.ph};
+    }
+  });
+
+  /* 8/30 と 8/29 の注意 */
+  if(map['2026-08-30']) map['2026-08-30'].items.push({t:'', type:'warn',
+    title:'決勝は Chase Center', map:'chase', icon:'🏆',
+    note:'Moscone から Muni T ラインで約20分。アリーナ入場の権限が要るのでパスを確認'});
+  if(map['2026-08-29']) map['2026-08-29'].items.unshift({t:'', type:'warn',
+    title:'GO：PokémonXP配信を30分見る', icon:'📺',
+    note:'twitch.tv/PokemonXP を30分視聴で Cosmog-chu のリサーチ。この日だけの条件'});
+
+  /* 滞在期間の空白日を埋める */
+  const all = Object.values(map).map(d=>d.date).sort();
+  if(all.length){
+    const s=new Date(all[0]+'T00:00:00'), e=new Date(all[all.length-1]+'T00:00:00');
+    for(let x=new Date(s); x<=e; x.setDate(x.getDate()+1)){
+      const k=`${x.getFullYear()}-${pad(x.getMonth()+1)}-${pad(x.getDate())}`;
+      if(!map[k]){
+        const st=stayOn(k);
+        map[k]={date:k, label:'フリー', base: st?st.name:'', items:[],
+                placeholder:'まだ予定が入っていません。決まったら教えてください。'};
+      }
+    }
+  }
+  return Object.values(map).sort((a,b)=>a.date<b.date?-1:1);
+}
+
+/* ---------- 個人の予約カード ---------- */
+function buildBookings(){
+  const out=[];
+  if(PROF.arrive && PROF.arrive.time) out.push({cat:'フライト',
+    name:`${PROF.arrive.flight||'往路'} → サンフランシスコ`,
+    detail:`${PROF.arrive.date}  ${PROF.arrive.time} SFO着`,
+    note:'搭乗券は航空会社のアプリ / Wallet で'});
+  if(PROF.depart && PROF.depart.time) out.push({cat:'フライト',
+    name:`${PROF.depart.flight||'復路'} サンフランシスコ発`,
+    detail:`${PROF.depart.date}  ${PROF.depart.time} SFO発`,
+    note:'搭乗券は航空会社のアプリ / Wallet で'});
+  (PROF.stays||[]).forEach(s=>out.push({cat:'宿', name:s.name,
+    detail:[s.from&&`${s.from} 〜 ${s.to||''}`, s.addr].filter(Boolean).join(' ／ '),
+    code:s.code||'', note:`Mosconeまで徒歩${s.walk||10}分`,
+    dir:s.lat?null:s.name}));
+  (PROF.extras||[]).forEach(x=>out.push({cat:'その他', name:x.name,
+    detail:x.detail||'', code:x.code||'', note:x.note||''}));
+  return out;
+}
+
+/* ---------- 反映 ---------- */
+function applyProfile(){
+  if(!PROF) return false;
+  TRIP.days = buildDays();
+  TRIP.bookings = buildBookings();
+  TRIP.trip = Object.assign({}, TRIP.trip, {
+    start: TRIP.days[0].date, end: TRIP.days[TRIP.days.length-1].date });
+  return true;
+}

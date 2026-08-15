@@ -1,0 +1,1190 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="robots" content="noindex,nofollow">
+<!-- ホーム画面追加後に古いまま固定されないよう、強いキャッシュを持たせない。
+     Service Worker も入れない（入れると更新が届かなくなる） -->
+<meta http-equiv="Cache-Control" content="no-cache, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<meta name="theme-color" content="#17131F">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="SF 2026">
+<title>SF 2026 — 旅のしおり</title>
+<link rel="manifest" href="data:application/manifest+json,__MANIFEST__">
+<link rel="apple-touch-icon" href="__ICON__">
+<style>
+:root{
+  --ink:#17131F; --ink2:#241C33; --ink3:#312545; --line:#463659;
+  --plum:#7B4FB5; --plum-lt:#A97FE0; --gold:#F5C518; --cream:#EDE9E0;
+  --dim:#9C8FB0; --ok:#4ED8A0; --warn:#FF8A4C; --red:#E8619D;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;background:var(--ink);color:var(--cream);
+  font:16px/1.65 system-ui,-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;
+  padding-bottom:calc(72px + env(safe-area-inset-bottom));
+  overscroll-behavior-y:none;
+}
+.disp{font-weight:800;letter-spacing:.14em;text-transform:uppercase;font-size:11px}
+a{color:var(--plum-lt)}
+
+/* ===== header ===== */
+header{
+  position:sticky;top:0;z-index:30;background:rgba(23,19,31,.94);
+  backdrop-filter:blur(12px);border-bottom:1px solid var(--line);
+  padding-top:env(safe-area-inset-top);
+}
+.clocks{display:flex;align-items:baseline;gap:14px;padding:9px 16px}
+.clk{display:flex;align-items:baseline;gap:6px}
+.clk .z{font-size:10px;letter-spacing:.12em;color:var(--dim);font-weight:800}
+.clk .t{font:700 17px/1 ui-monospace,SFMono-Regular,Menlo,monospace;font-variant-numeric:tabular-nums}
+.clk.sf .t{color:var(--gold)}
+.clk .d{font-size:11px;color:var(--dim)}
+.clocks .status{margin-left:auto;font-size:11px;color:var(--dim);text-align:right;line-height:1.35}
+.dtabs{display:flex;gap:5px;padding:0 12px 9px;overflow-x:auto;scrollbar-width:none}
+.dtabs::-webkit-scrollbar{display:none}
+.dtab{
+  flex:none;border:1px solid var(--line);background:transparent;color:var(--dim);
+  border-radius:10px;padding:6px 10px;cursor:pointer;text-align:center;min-width:52px;
+}
+.dtab .dd{font:700 15px/1.15 ui-monospace,Menlo,monospace}
+.dtab .dw{font-size:9.5px;letter-spacing:.06em;margin-top:2px;opacity:.8}
+.dtab[aria-selected=true]{background:var(--plum);border-color:var(--plum-lt);color:#fff}
+.dtab.today{border-color:var(--gold)}
+
+/* ===== views ===== */
+main{padding:0 0 8px}
+.view{display:none}
+.view.on{display:block}
+section{padding:18px 16px 6px}
+h2.sec{
+  margin:0 0 12px;font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--gold);font-weight:800;
+}
+h3.sub{margin:22px 0 10px;font-size:14px;font-weight:700;color:var(--cream)}
+
+/* ===== day head ===== */
+.dayhead{padding:16px 16px 0}
+.dayhead .big{font:800 26px/1.2 system-ui;letter-spacing:-.01em}
+.dayhead .meta{color:var(--dim);font-size:13px;margin-top:3px}
+.anchor-card{
+  margin:14px 16px 0;border:1px solid var(--gold);border-radius:12px;
+  background:linear-gradient(180deg,rgba(245,197,24,.11),rgba(245,197,24,.03));
+  padding:12px 14px;display:flex;align-items:center;gap:12px;
+}
+.anchor-card .ttl{font:800 22px/1 ui-monospace,Menlo,monospace;color:var(--gold)}
+.anchor-card .tx{font-size:13px;line-height:1.45}
+.anchor-card .tx b{display:block;font-size:10px;letter-spacing:.14em;color:var(--gold);
+  text-transform:uppercase;margin-bottom:2px}
+
+/* ===== timeline ===== */
+.tl{position:relative;margin:18px 0 0;padding:0 16px}
+.tl::before{content:"";position:absolute;left:71px;top:6px;bottom:14px;width:2px;background:var(--line)}
+.it{position:relative;display:flex;gap:0;padding:0 0 4px}
+.it .time{
+  width:55px;flex:none;text-align:right;padding-right:12px;padding-top:11px;
+  font:700 14px/1 ui-monospace,Menlo,monospace;color:var(--cream);font-variant-numeric:tabular-nums;
+}
+.it .rail{width:24px;flex:none;position:relative;display:flex;justify-content:center;padding-top:14px}
+.it .node{
+  width:11px;height:11px;border-radius:50%;background:var(--ink);
+  border:2px solid var(--plum-lt);z-index:2;position:relative;
+}
+.it .body{flex:1;min-width:0;padding:8px 0 10px}
+.it .ttl{font-weight:700;font-size:15.5px;line-height:1.4}
+.it .place{font-size:12.5px;color:var(--plum-lt);margin-top:2px}
+.it .note{font-size:13px;color:var(--dim);margin-top:5px;line-height:1.6}
+
+.it.move .time{color:var(--dim);font-size:12px;padding-top:9px}
+.it.move .node{width:7px;height:7px;border-style:dashed;border-color:var(--line);background:var(--line)}
+.it.move .body{padding:5px 0 7px}
+.it.move .ttl{font-weight:600;font-size:13.5px;color:var(--dim)}
+.it.move .dur{
+  display:inline-block;font:700 11px/1 ui-monospace,Menlo,monospace;color:var(--cream);
+  background:var(--ink3);border:1px solid var(--line);border-radius:5px;padding:3px 6px;margin-left:7px;
+}
+.it.anchor .node{background:var(--gold);border-color:var(--gold);width:14px;height:14px;
+  box-shadow:0 0 0 4px rgba(245,197,24,.18)}
+.it.anchor .time{color:var(--gold);font-size:15px}
+.it.anchor .ttl{color:var(--gold)}
+.it.free .node{background:transparent;border-color:var(--line)}
+.it.free .ttl{color:var(--dim);font-weight:600}
+.it.warn{margin:2px 0 10px}
+.it.warn .node{background:var(--warn);border-color:var(--warn)}
+.it.warn .ttl{color:var(--warn)}
+.it .icon{font-size:13px;margin-right:5px;opacity:.85}
+
+.chips{display:flex;flex-wrap:wrap;gap:7px;margin-top:9px}
+.chip{
+  border:1px solid var(--line);background:var(--ink2);color:var(--cream);
+  border-radius:8px;padding:6px 11px;font-size:12px;font-weight:600;
+  cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:5px;
+}
+.chip:active{background:var(--ink3)}
+.chip[aria-expanded=true]{border-color:var(--gold);color:var(--gold)}
+
+/* 現在地からの方角 */
+.geobox{
+  margin-top:9px;border:1px solid var(--gold);border-radius:12px;
+  background:linear-gradient(180deg,rgba(245,197,24,.1),rgba(245,197,24,.02));
+  padding:13px;display:flex;align-items:center;gap:14px;
+}
+.geobox .dial{
+  width:76px;height:76px;flex:none;border-radius:50%;position:relative;
+  border:2px solid var(--line);background:var(--ink);
+}
+.geobox .dial .n{
+  position:absolute;top:3px;left:50%;transform:translateX(-50%);
+  font:800 9px/1 system-ui;color:var(--dim);letter-spacing:.1em;
+}
+.geobox .dial .needle{
+  position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+  transition:transform .35s cubic-bezier(.4,0,.2,1);
+}
+.geobox .dial .needle svg{width:40px;height:40px;display:block}
+.geobox .rd{flex:1;min-width:0}
+.geobox .dist{font:800 25px/1 ui-monospace,Menlo,monospace;color:var(--gold);
+  font-variant-numeric:tabular-nums}
+.geobox .dist small{font-size:13px;font-weight:700;margin-left:3px}
+.geobox .dir{font-size:14px;font-weight:700;margin-top:5px}
+.geobox .acc{font-size:11px;color:var(--dim);margin-top:5px;line-height:1.5}
+.geobox.err{border-color:var(--line);background:var(--ink2)}
+.geobox.err .msg{font-size:13px;color:var(--dim);line-height:1.6}
+
+.fallback{
+  margin:16px;border:1px dashed var(--warn);border-radius:12px;padding:13px 15px;
+  background:rgba(255,138,76,.06);
+}
+.fallback b{display:block;font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+  color:var(--warn);margin-bottom:5px;font-weight:800}
+.fallback p{margin:0;font-size:13px;line-height:1.65;color:var(--cream)}
+
+.blank{
+  margin:20px 16px;border:1px dashed var(--line);border-radius:12px;
+  padding:22px 18px;text-align:center;
+}
+.blank .h{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);
+  font-weight:800;margin-bottom:9px}
+.blank p{margin:0;font-size:13.5px;color:var(--dim);line-height:1.7}
+
+/* ===== 日程 overview ===== */
+.phase{margin:0 16px 8px;font-size:10px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--plum-lt);font-weight:800;padding-top:16px}
+.dcard{
+  display:flex;gap:13px;align-items:flex-start;margin:0 16px 9px;padding:13px 14px;
+  border:1px solid var(--line);border-radius:12px;background:var(--ink2);cursor:pointer;
+}
+.dcard:active{background:var(--ink3)}
+.dcard .dt{flex:none;width:44px;text-align:center}
+.dcard .dt .n{font:800 19px/1 ui-monospace,Menlo,monospace}
+.dcard .dt .w{font-size:9.5px;color:var(--dim);letter-spacing:.06em;margin-top:3px}
+.dcard .info{flex:1;min-width:0}
+.dcard .lb{font-weight:700;font-size:15px}
+.dcard .bs{font-size:12px;color:var(--dim);margin-top:2px}
+.dcard .cnt{flex:none;font-size:11px;color:var(--dim);font-variant-numeric:tabular-nums;padding-top:4px}
+
+/* ===== マップ ===== */
+.mtabs{display:flex;gap:6px;padding:0 16px 12px;overflow-x:auto;scrollbar-width:none}
+.mtabs::-webkit-scrollbar{display:none}
+.mtab{flex:none;border:1px solid var(--line);background:transparent;color:var(--dim);
+  padding:7px 13px;border-radius:999px;font-size:12.5px;font-weight:600;cursor:pointer;white-space:nowrap}
+.mtab[aria-selected=true]{background:var(--plum);border-color:var(--plum-lt);color:#fff}
+#mstage{position:relative;height:62vh;min-height:340px;overflow:hidden;background:#0E0B14;
+  touch-action:none;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+#mcanvas{position:absolute;top:0;left:0;transform-origin:0 0;will-change:transform}
+#mcanvas img{display:block;max-width:none;pointer-events:none;user-select:none}
+.pin{position:absolute;width:0;height:0}
+.pin i{position:absolute;left:-9px;top:-9px;width:18px;height:18px;
+  border-radius:50% 50% 50% 2px;transform:rotate(45deg);border:2px solid #fff;
+  box-shadow:0 2px 5px rgba(0,0,0,.6)}
+.pin b{position:absolute;left:12px;top:-8px;white-space:nowrap;font-size:10.5px;font-weight:700;
+  background:rgba(23,19,31,.9);border:1px solid var(--line);padding:2px 6px;border-radius:5px;
+  display:none}
+.pin.lb b,.pin.hi b{display:block}
+.pin.dim{opacity:.22}
+.mfilter{display:flex;flex-wrap:wrap;gap:6px;padding:12px 16px 4px}
+.fchip{border:1px solid var(--line);background:transparent;color:var(--dim);border-radius:999px;
+  padding:5px 10px;font-size:11.5px;font-weight:600;cursor:pointer;display:flex;align-items:center;gap:5px}
+.fchip .dot{width:8px;height:8px;border-radius:2px}
+.fchip[aria-pressed=true]{color:#fff;background:var(--ink3)}
+.mzoom{position:absolute;right:10px;bottom:10px;display:flex;flex-direction:column;gap:6px}
+.mzoom button{width:36px;height:36px;border-radius:9px;border:1px solid var(--line);
+  background:rgba(36,28,51,.92);color:var(--cream);font-size:16px;font-weight:700;cursor:pointer}
+
+/* 街の位置関係図 */
+.geo{margin:0 16px;border:1px solid var(--line);border-radius:12px;background:var(--ink2);padding:6px}
+.geo svg{display:block;width:100%;height:auto}
+
+/* ===== 情報 ===== */
+.card{border:1px solid var(--line);border-radius:12px;background:var(--ink2);
+  padding:14px;margin-bottom:10px}
+.card .cat{font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--plum-lt);
+  font-weight:800;margin-bottom:6px}
+.card .nm{font-weight:700;font-size:15px;line-height:1.4}
+.card .dt{font-size:13px;color:var(--cream);margin-top:5px;font-variant-numeric:tabular-nums}
+.card .nt{font-size:12.5px;color:var(--dim);margin-top:6px;line-height:1.6}
+.code{
+  display:flex;align-items:center;gap:9px;margin-top:9px;padding:9px 11px;
+  background:var(--ink);border:1px solid var(--line);border-radius:9px;cursor:pointer;
+}
+.code .lbl{font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--dim);font-weight:800}
+.code .val{font:700 14px/1 ui-monospace,Menlo,monospace;flex:1;overflow:hidden;text-overflow:ellipsis}
+.code .cp{font-size:11px;color:var(--plum-lt);font-weight:700;flex:none}
+.qrbtn{
+  width:100%;margin-top:10px;border:1px solid var(--gold);border-radius:10px;
+  background:rgba(245,197,24,.1);color:var(--gold);font-weight:800;font-size:13px;
+  padding:12px;cursor:pointer;letter-spacing:.04em;
+}
+.tel{display:flex;align-items:center;gap:12px;padding:13px 14px;border:1px solid var(--line);
+  border-radius:12px;background:var(--ink2);margin-bottom:9px;text-decoration:none;color:inherit}
+.tel .ic{width:34px;height:34px;flex:none;border-radius:9px;background:var(--ink3);
+  display:flex;align-items:center;justify-content:center;font-size:15px}
+.tel .nm{font-weight:700;font-size:14.5px}
+.tel .no{font:700 13px/1.3 ui-monospace,Menlo,monospace;color:var(--plum-lt);margin-top:2px}
+.tel .nt{font-size:11.5px;color:var(--dim);margin-top:3px}
+.tip{border-left:2px solid var(--plum);padding:2px 0 2px 13px;margin-bottom:16px}
+.tip h4{margin:0 0 4px;font-size:13px;font-weight:800;color:var(--gold);letter-spacing:.03em}
+.tip p{margin:0;font-size:13.5px;color:var(--cream);line-height:1.7}
+
+/* ===== 準備 ===== */
+.prog{display:flex;align-items:center;gap:10px;margin:0 16px 4px}
+.prog .bar{flex:1;height:6px;border-radius:99px;background:var(--ink3);overflow:hidden}
+.prog .bar i{display:block;height:100%;background:var(--ok);border-radius:99px;transition:width .3s}
+.prog .pc{font:700 12px/1 ui-monospace,Menlo,monospace;color:var(--ok);flex:none}
+.ck{display:flex;align-items:flex-start;gap:11px;padding:11px 14px;border-bottom:1px solid var(--ink3);
+  cursor:pointer}
+.ck:last-child{border-bottom:0}
+.ck .box{width:21px;height:21px;flex:none;border-radius:6px;border:2px solid var(--line);
+  margin-top:1px;display:flex;align-items:center;justify-content:center;font-size:12px;color:var(--ink);
+  font-weight:900;transition:.15s}
+.ck.on .box{background:var(--ok);border-color:var(--ok)}
+.ck.on .tx{color:var(--dim);text-decoration:line-through}
+.ck .tx{font-size:14.5px;line-height:1.5}
+.grp{border:1px solid var(--line);border-radius:12px;background:var(--ink2);overflow:hidden;margin-bottom:12px}
+.grp .gh{padding:11px 14px;background:var(--ink3);font-size:11px;letter-spacing:.14em;
+  text-transform:uppercase;font-weight:800;color:var(--gold);display:flex}
+.grp .gh .n{margin-left:auto;color:var(--dim);letter-spacing:0;font-variant-numeric:tabular-nums}
+
+/* ===== XP ===== */
+.seg{display:flex;gap:6px;padding:0 16px 4px}
+.seg button{flex:1;border:1px solid var(--line);background:transparent;color:var(--dim);
+  border-radius:9px;padding:9px 4px;font-size:12.5px;font-weight:700;cursor:pointer}
+.seg button[aria-selected=true]{background:var(--plum);border-color:var(--plum-lt);color:#fff}
+.dayf{display:flex;gap:6px;padding:12px 16px 0}
+.dayf button{border:1px solid var(--line);background:transparent;color:var(--dim);
+  border-radius:999px;padding:5px 14px;font-size:12px;font-weight:700;cursor:pointer}
+.dayf button[aria-selected=true]{background:var(--ink3);color:var(--gold);border-color:var(--gold)}
+.banner{margin:14px 16px 0;border:1px dashed var(--plum-lt);border-radius:11px;
+  padding:12px 14px;background:rgba(123,79,181,.1);font-size:12.5px;color:var(--cream);line-height:1.65}
+.banner b{color:var(--plum-lt);display:block;font-size:10px;letter-spacing:.14em;
+  text-transform:uppercase;margin-bottom:4px;font-weight:800}
+.slot{display:flex;gap:11px;padding:10px 14px;border-bottom:1px solid var(--ink3);align-items:flex-start}
+.slot:last-child{border-bottom:0}
+.slot .st{width:44px;flex:none;font:700 13px/1.5 ui-monospace,Menlo,monospace;
+  color:var(--cream);font-variant-numeric:tabular-nums}
+.slot .sb{flex:1;min-width:0}
+.slot .sn{font-size:14px;font-weight:600;line-height:1.45}
+.slot .sm{font-size:11.5px;color:var(--dim);margin-top:3px;line-height:1.5}
+.slot .sd{flex:none;display:flex;gap:3px;padding-top:2px}
+.slot .sd span{font-size:9.5px;font-weight:800;width:16px;height:16px;border-radius:4px;
+  display:flex;align-items:center;justify-content:center;background:var(--ink3);color:var(--dim)}
+.slot .sd span.on{background:var(--gold);color:var(--ink)}
+.slot .kk{display:inline-block;font-size:9.5px;font-weight:800;padding:2px 5px;border-radius:4px;
+  margin-right:5px;vertical-align:1px}
+.kk.g{background:rgba(232,97,157,.2);color:#E8619D}
+.kk.s{background:rgba(76,168,255,.2);color:#4CA8FF}
+.pl{padding:10px 14px;border-bottom:1px solid var(--ink3);font-size:13.5px;line-height:1.6}
+.pl:last-child{border-bottom:0}
+.pl .pd{font-size:10px;font-weight:800;color:var(--gold);letter-spacing:.1em;margin-bottom:5px}
+.tagrow{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.tag{font-size:12px;background:var(--ink3);border:1px solid var(--line);border-radius:6px;
+  padding:4px 9px;color:var(--cream)}
+.price{font-size:13px;padding:8px 14px;border-bottom:1px solid var(--ink3);line-height:1.55}
+.price:last-child{border-bottom:0}
+.warnline{margin:0 0 10px;padding:9px 12px;border-radius:9px;background:rgba(255,138,76,.1);
+  border:1px solid var(--warn);font-size:12px;color:var(--warn);font-weight:600}
+
+/* 展開する詳細 */
+.row2{border-bottom:1px solid var(--ink3)}
+.row2:last-child{border-bottom:0}
+.rowhd{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;cursor:pointer}
+.rowhd:active{background:var(--ink3)}
+.rowhd .rn{flex:1;min-width:0;font-size:14.5px;font-weight:600;line-height:1.45}
+.rowhd .rt{flex:none;font:700 13px/1.5 ui-monospace,Menlo,monospace;color:var(--cream);
+  width:44px;font-variant-numeric:tabular-nums}
+.rowhd .cv{flex:none;color:var(--dim);font-size:13px;transition:transform .2s;padding-top:2px}
+.row2.open .cv{transform:rotate(90deg);color:var(--gold)}
+.row2.open .rn{color:var(--gold)}
+.row2.done .rn::after{content:" ✓";color:var(--ok);font-weight:900}
+.det{display:none;padding:2px 14px 15px 14px}
+.row2.open .det{display:block}
+.det .dd{font-size:13.5px;line-height:1.7;color:var(--cream);margin-bottom:11px}
+.det .meta{display:flex;gap:9px;align-items:flex-start;font-size:12.5px;color:var(--dim);
+  line-height:1.55;margin-bottom:5px}
+.det .meta .k{flex:none;font-size:9.5px;font-weight:800;letter-spacing:.12em;color:var(--plum-lt);
+  width:38px;padding-top:3px}
+.det .meta .v{flex:1;color:var(--cream)}
+.det .acts{display:flex;gap:7px;margin-top:12px;flex-wrap:wrap}
+.det .acts button{border:1px solid var(--line);background:var(--ink3);color:var(--cream);
+  border-radius:8px;padding:8px 13px;font-size:12px;font-weight:700;cursor:pointer}
+.det .acts button.go{border-color:var(--plum-lt);color:var(--plum-lt)}
+.det .acts button.dn[aria-pressed=true]{background:var(--ok);border-color:var(--ok);color:#0B2A1E}
+.pin.hi i{outline:3px solid var(--gold);outline-offset:3px;animation:bp 1.1s ease-out 3}
+.pin.hi b{background:var(--gold);color:var(--ink);border-color:var(--gold)}
+@keyframes bp{0%{box-shadow:0 0 0 0 rgba(245,197,24,.65)}100%{box-shadow:0 0 0 22px rgba(245,197,24,0)}}
+
+/* ===== UNITE / GO ===== */
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:9px;padding:0 16px}
+.gcard{border:1px solid var(--line);border-radius:11px;background:var(--ink2);overflow:hidden}
+.gcard .gt{padding:7px 11px;background:var(--ink3);font:800 12px/1 system-ui;letter-spacing:.1em;
+  color:var(--gold)}
+.gcard .tm{display:flex;gap:7px;align-items:center;padding:7px 10px;font-size:11.5px;
+  border-top:1px solid rgba(70,54,89,.5);line-height:1.35}
+.gcard .tm .rg{flex:none;font:800 8.5px/1 system-ui;padding:3px 4px;border-radius:3px;
+  background:var(--line);color:var(--cream);min-width:26px;text-align:center;letter-spacing:.02em}
+.gcard .tm.jp{background:rgba(245,197,24,.08)}
+.gcard .tm.jp .rg{background:var(--gold);color:var(--ink)}
+.gcard .tm.jp .nm2{color:var(--gold);font-weight:700}
+.gcard .tm .nm2{flex:1;min-width:0;overflow-wrap:anywhere}
+.legend{padding:12px 16px 0;font-size:11.5px;color:var(--dim);line-height:1.6}
+.todo{border:1px solid var(--line);border-radius:12px;background:var(--ink2);margin:0 0 10px;
+  overflow:hidden}
+.todo.w{border-color:var(--warn)}
+.todo .th{display:flex;gap:10px;align-items:flex-start;padding:12px 14px;cursor:pointer}
+.todo .tw{flex:none;font:800 10px/1.4 ui-monospace,Menlo,monospace;color:var(--gold);
+  background:var(--ink3);border-radius:5px;padding:4px 6px;min-width:52px;text-align:center}
+.todo.w .tw{background:rgba(255,138,76,.15);color:var(--warn)}
+.todo .tn{flex:1;min-width:0;font-size:14.5px;font-weight:700;line-height:1.45}
+.todo .tc{flex:none;width:20px;height:20px;border-radius:6px;border:2px solid var(--line);
+  display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--ink);font-weight:900}
+.todo.done .tc{background:var(--ok);border-color:var(--ok)}
+.todo.done .tn{color:var(--dim);text-decoration:line-through}
+.todo .td{padding:0 14px 13px;font-size:13px;color:var(--cream);line-height:1.65}
+.todo .ta{padding:0 14px 13px}
+.todo .ta a{display:inline-block;border:1px solid var(--plum-lt);color:var(--plum-lt);
+  border-radius:8px;padding:7px 12px;font-size:12px;font-weight:700;text-decoration:none}
+
+/* 落選した枠 */
+.grp.lost .rowhd{opacity:.42}
+.grp.lost .row2.open .rowhd{opacity:1}
+.result{margin:0 16px 16px;border:1px solid var(--line);border-radius:12px;
+  background:var(--ink2);padding:15px}
+.result h4{margin:0 0 9px;font-size:15px;font-weight:800;color:var(--cream)}
+.result p{margin:0 0 10px;font-size:13.5px;line-height:1.75;color:var(--cream)}
+.result p.sub{font-size:12px;color:var(--dim);margin:0}
+.result .cta{display:inline-block;margin-top:4px;border:1px solid var(--gold);color:var(--gold);
+  background:transparent;border-radius:9px;padding:10px 15px;font-size:13px;font-weight:700;cursor:pointer}
+
+/* ===== nav ===== */
+nav{
+  position:fixed;left:0;right:0;bottom:0;z-index:40;display:flex;
+  background:rgba(23,19,31,.96);backdrop-filter:blur(12px);border-top:1px solid var(--line);
+  padding-bottom:env(safe-area-inset-bottom);
+}
+nav button{
+  flex:1;background:none;border:0;color:var(--dim);padding:9px 2px 8px;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10px;font-weight:700;
+  letter-spacing:.04em;
+}
+nav button .g{font-size:18px;line-height:1}
+nav button{font-size:9.5px}
+nav button[aria-selected=true]{color:var(--gold)}
+
+/* ===== setup ===== */
+#setup{position:fixed;inset:0;z-index:80;background:var(--ink);overflow-y:auto;display:none;
+  -webkit-overflow-scrolling:touch}
+#setup.on{display:block}
+.su-wrap{max-width:520px;margin:0 auto;padding:calc(28px + env(safe-area-inset-top)) 20px
+  calc(40px + env(safe-area-inset-bottom))}
+.su-head{margin-bottom:26px}
+.su-kicker{font:800 11px/1 system-ui;letter-spacing:.24em;color:var(--gold);margin-bottom:10px}
+.su-head h1{margin:0 0 12px;font:800 30px/1.2 system-ui;letter-spacing:-.01em}
+.su-head p{margin:0 0 14px;font-size:14px;color:var(--dim);line-height:1.75}
+.su-priv{border:1px solid var(--line);border-left:2px solid var(--ok);border-radius:0 9px 9px 0;
+  padding:11px 13px;font-size:12.5px;color:var(--cream);line-height:1.65;background:var(--ink2)}
+.su-sec{border-top:1px solid var(--line);padding:22px 0 4px}
+.su-sec h2{margin:0 0 6px;font-size:11px;letter-spacing:.16em;text-transform:uppercase;
+  color:var(--gold);font-weight:800}
+.su-sec .hint{margin:0 0 14px;font-size:12px;color:var(--dim);line-height:1.65}
+.f{margin-bottom:14px}
+.f label{display:block;font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--dim);font-weight:700;margin-bottom:6px}
+.f input{width:100%;background:var(--ink2);border:1px solid var(--line);color:var(--cream);
+  border-radius:9px;padding:12px;font:15px/1.4 inherit}
+.f input:focus{outline:2px solid var(--plum-lt);outline-offset:-1px}
+.f .hint{margin:7px 0 0}
+.row{display:flex;gap:11px}
+.row .f{flex:1;min-width:0}
+.stay{border:1px solid var(--line);border-radius:12px;background:var(--ink2);
+  padding:14px;margin-bottom:11px}
+.stay-h{display:flex;align-items:center;font:800 11px/1 system-ui;letter-spacing:.14em;
+  color:var(--plum-lt);margin-bottom:13px;text-transform:uppercase}
+.su-del{margin-left:auto;background:none;border:0;color:#C86B7A;font-size:11px;
+  font-weight:700;cursor:pointer;letter-spacing:0}
+.walkrow{display:flex;align-items:center;gap:9px}
+.walkrow input{flex:none;width:82px;text-align:center}
+.walkrow .unit{font-size:13px;color:var(--dim)}
+.su-look{margin-left:auto;border:1px solid var(--plum-lt);background:transparent;
+  color:var(--plum-lt);border-radius:8px;padding:9px 13px;font-size:12px;font-weight:700;cursor:pointer}
+.su-add{width:100%;border:1px dashed var(--line);background:transparent;color:var(--dim);
+  border-radius:10px;padding:13px;font-size:13px;font-weight:700;cursor:pointer}
+.su-add:active{background:var(--ink2)}
+.su-foot{padding-top:26px}
+.su-go{width:100%;border:0;border-radius:11px;background:var(--gold);color:var(--ink);
+  padding:16px;font-size:15px;font-weight:800;cursor:pointer;letter-spacing:.03em}
+.su-go:active{transform:translateY(1px)}
+.su-legal{margin-top:30px;padding-top:18px;border-top:1px solid var(--line);
+  font-size:11px;color:var(--dim);line-height:1.8;text-align:center}
+.cfg{border:1px solid var(--line);border-radius:12px;background:var(--ink2);
+  padding:14px;margin-bottom:14px}
+.cfg .ct{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--plum-lt);
+  font-weight:800;margin-bottom:9px}
+.cfg .cl{font-size:13.5px;line-height:1.75;color:var(--cream)}
+.cfg .cl b{color:var(--gold)}
+.cfg .cb{display:flex;gap:8px;flex-wrap:wrap;margin-top:13px}
+.cfg .cb button{border:1px solid var(--line);background:var(--ink3);color:var(--cream);
+  border-radius:8px;padding:9px 13px;font-size:12px;font-weight:700;cursor:pointer}
+.cfg .cb button.pri{border-color:var(--gold);color:var(--gold)}
+
+/* ===== modal ===== */
+.veil{position:fixed;inset:0;background:rgba(10,7,15,.86);display:none;align-items:center;
+  justify-content:center;padding:20px;z-index:60}
+.veil.on{display:flex}
+.qrcard{background:#fff;border-radius:16px;padding:20px;max-width:340px;width:100%;text-align:center}
+.qrcard img{width:100%;height:auto;display:block;border-radius:6px}
+.qrcard .h{color:#17131F;font-weight:800;font-size:14px;margin-bottom:12px;letter-spacing:.04em}
+.qrcard .f{color:#5A5266;font-size:12px;margin-top:12px;line-height:1.55}
+.qrcard button{margin-top:14px;width:100%;padding:12px;border-radius:9px;border:0;
+  background:#17131F;color:#EDE9E0;font-weight:700;font-size:13px;cursor:pointer}
+.toast{position:fixed;left:50%;bottom:88px;transform:translateX(-50%) translateY(10px);
+  background:var(--ok);color:#0B2A1E;font-weight:700;font-size:13px;padding:9px 18px;
+  border-radius:999px;opacity:0;transition:.25s;pointer-events:none;z-index:70}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
+:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="clocks">
+    <div class="clk sf"><span class="z">SF</span><span class="t" id="tSF">--:--</span><span class="d" id="dSF"></span></div>
+    <div class="clk"><span class="z">JST</span><span class="t" id="tJP">--:--</span><span class="d" id="dJP"></span></div>
+    <div class="status" id="status"></div>
+  </div>
+  <div class="dtabs" id="dtabs"></div>
+</header>
+
+<main>
+  <div class="view on" id="v-day"></div>
+  <div class="view" id="v-plan"></div>
+  <div class="view" id="v-map">
+    <section style="padding-bottom:0">
+      <h2 class="sec">街の位置関係</h2>
+      <div class="geo">__GEO__</div>
+    </section>
+    <section style="padding-bottom:6px">
+      <h2 class="sec">会場マップ</h2>
+    </section>
+    <div class="mtabs" id="mtabs"></div>
+    <div id="mstage">
+      <div id="mcanvas"></div>
+      <div class="mzoom">
+        <button id="mzin" aria-label="拡大">＋</button>
+        <button id="mzout" aria-label="縮小">−</button>
+        <button id="mzfit" aria-label="全体" style="font-size:11px">⤢</button>
+      </div>
+    </div>
+    <div class="mfilter" id="mfilter"></div>
+  </div>
+  <div class="view" id="v-xp"></div>
+  <div class="view" id="v-info"></div>
+  <div class="view" id="v-prep"></div>
+</main>
+
+<nav id="nav">
+  <button data-v="day"  aria-selected="true"><span class="g">📍</span>今日</button>
+  <button data-v="plan"><span class="g">🗓</span>日程</button>
+  <button data-v="map"><span class="g">🗺</span>マップ</button>
+  <button data-v="xp"><span class="g">🎪</span>イベント</button>
+  <button data-v="info"><span class="g">📇</span>情報</button>
+  <button data-v="prep"><span class="g">✓</span>準備</button>
+</nav>
+
+<div id="setup"></div>
+<div class="toast" id="toast"></div>
+
+<script>
+const TRIP = __TRIP__, MAPS = __MAPS__, PINS = __PINS__;
+__SETUP__
+__SETUPUI__
+const CATS = {event:'#F5C518',shop:'#E8619D',pin:'#4ED8A0',food:'#FF8A4C',
+              entry:'#4CA8FF',wc:'#9C8FB0',other:'#A97FE0'};
+const CATNAME = {event:'イベント',shop:'物販',pin:'Pin Rally',food:'飲食',
+                 entry:'入口・受付',wc:'トイレ',other:'その他'};
+const WD = ['日','月','火','水','木','金','土'];
+const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const $ = id => document.getElementById(id);
+const toastEl = $('toast');
+const toast = m => { toastEl.textContent=m; toastEl.classList.add('on');
+  clearTimeout(toastEl._t); toastEl._t=setTimeout(()=>toastEl.classList.remove('on'),1500); };
+
+/* ---- 時計 ---- */
+function parts(tz){
+  const f=new Intl.DateTimeFormat('ja-JP',{timeZone:tz,year:'numeric',month:'numeric',
+    day:'numeric',weekday:'short',hour:'2-digit',minute:'2-digit',hour12:false});
+  const o={}; f.formatToParts(new Date()).forEach(p=>o[p.type]=p.value); return o;
+}
+function tick(){
+  const a=parts('America/Los_Angeles'), b=parts('Asia/Tokyo');
+  $('tSF').textContent=`${a.hour}:${a.minute}`; $('dSF').textContent=`${a.month}/${a.day}(${a.weekday})`;
+  $('tJP').textContent=`${b.hour}:${b.minute}`; $('dJP').textContent=`${b.month}/${b.day}(${b.weekday})`;
+  const today=sfDate();
+  const d0=new Date(TRIP.trip.start+'T00:00:00'), dn=new Date(today+'T00:00:00');
+  const diff=Math.round((d0-dn)/86400000);
+  $('status').innerHTML = diff>0 ? `出発まで<b style="color:var(--gold)"> ${diff} </b>日`
+    : (today>TRIP.trip.end ? '' : `${TRIP.trip.sub}`);
+}
+function sfDate(){
+  const a=parts('America/Los_Angeles');
+  return `${a.year}-${String(a.month).padStart(2,'0')}-${String(a.day).padStart(2,'0')}`;
+}
+function sfMinutes(){ const a=parts('America/Los_Angeles'); return +a.hour*60 + +a.minute; }
+
+/* ---- 状態 ---- */
+const CK='sf2026-checks', ckState = (()=>{ try{return JSON.parse(localStorage.getItem(CK))||{}}catch(e){return{}} })();
+const saveCk=()=>{try{localStorage.setItem(CK,JSON.stringify(ckState))}catch(e){}};
+let curDate = (TRIP.days[0]||{}).date || '';
+let curMap = MAPS[0].id;
+let hidden = new Set();
+
+/* ---- 日付タブ ---- */
+function renderDtabs(){
+  $('dtabs').innerHTML='';
+  TRIP.days.forEach(d=>{
+    const dt=new Date(d.date+'T00:00:00');
+    const b=document.createElement('button');
+    b.className='dtab'+(d.date===sfDate()?' today':'');
+    b.setAttribute('aria-selected', d.date===curDate?'true':'false');
+    b.innerHTML=`<div class="dd">${dt.getMonth()+1}/${dt.getDate()}</div><div class="dw">${WD[dt.getDay()]}</div>`;
+    b.onclick=()=>{ stopGeo(); curDate=d.date; renderDtabs(); renderDay(); go('day'); window.scrollTo(0,0); };
+    $('dtabs').appendChild(b);
+  });
+}
+
+/* ---- 今日 ---- */
+function mapChip(key){
+  const p=TRIP.places[key]; if(!p) return '';
+  const dir=`https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lng}&travelmode=walking`;
+  return `<a class="chip" target="_blank" rel="noopener" href="${dir}">🚶 ここへの道順</a>
+    <button class="chip" data-geo="${key}" aria-expanded="false">🧭 方角と距離</button>
+    <div class="geoslot"></div>`;
+}
+
+/* ---- 現在地からの方角・距離（オフライン動作） ---- */
+const R=6371000, rad=d=>d*Math.PI/180, deg=r=>r*180/Math.PI;
+function haversine(a,b,c,d){
+  const dLat=rad(c-a), dLng=rad(d-b);
+  const x=Math.sin(dLat/2)**2 + Math.cos(rad(a))*Math.cos(rad(c))*Math.sin(dLng/2)**2;
+  return 2*R*Math.asin(Math.sqrt(x));
+}
+function bearing(a,b,c,d){
+  const y=Math.sin(rad(d-b))*Math.cos(rad(c));
+  const x=Math.cos(rad(a))*Math.sin(rad(c))-Math.sin(rad(a))*Math.cos(rad(c))*Math.cos(rad(d-b));
+  return (deg(Math.atan2(y,x))+360)%360;
+}
+const COMPASS=['北','北北東','北東','東北東','東','東南東','南東','南南東',
+               '南','南南西','南西','西南西','西','西北西','北西','北北西'];
+const dirName=b=>COMPASS[Math.round(b/22.5)%16];
+
+let geoWatch=null, geoHeading=null, geoActive=null;
+const NEEDLE=`<svg viewBox="0 0 40 40"><path d="M20 4 L27 30 L20 25 L13 30 Z"
+  fill="#F5C518" stroke="#17131F" stroke-width="1.2" stroke-linejoin="round"/></svg>`;
+
+function stopGeo(){
+  if(geoWatch!==null){ navigator.geolocation.clearWatch(geoWatch); geoWatch=null; }
+  window.removeEventListener('deviceorientationabsolute',onHeading);
+  window.removeEventListener('deviceorientation',onHeading);
+  geoHeading=null;
+  if(geoActive){
+    geoActive.btn.setAttribute('aria-expanded','false');
+    geoActive.slot.innerHTML='';
+    geoActive=null;
+  }
+}
+function onHeading(e){
+  const h = (e.webkitCompassHeading!=null) ? e.webkitCompassHeading
+          : (e.absolute && e.alpha!=null) ? (360-e.alpha) : null;
+  if(h!=null){ geoHeading=h; paintGeo(); }
+}
+let lastFix=null;
+function paintGeo(){
+  if(!geoActive||!lastFix) return;
+  const p=TRIP.places[geoActive.key];
+  const d=haversine(lastFix.lat,lastFix.lng,p.lat,p.lng);
+  const b=bearing(lastFix.lat,lastFix.lng,p.lat,p.lng);
+  const rot = geoHeading!=null ? b-geoHeading : b;
+  const val = d<1000 ? Math.round(d) : (d/1000).toFixed(1);
+  const unit = d<1000 ? 'm' : 'km';
+  const walk = Math.max(1, Math.round(d/80));
+  const basis = geoHeading!=null ? '端末の向きが上' : '北が上';
+  const rough = lastFix.acc>50
+    ? `<br>屋内にいると誤差が大きく出ます（現在 ±${Math.round(lastFix.acc)}m）。目安として見てください。` : '';
+  geoActive.slot.innerHTML=`<div class="geobox">
+    <div class="dial"><span class="n">${geoHeading!=null?'前':'N'}</span>
+      <div class="needle" style="transform:rotate(${rot}deg)">${NEEDLE}</div></div>
+    <div class="rd">
+      <div class="dist">${val}<small>${unit}</small></div>
+      <div class="dir">${dirName(b)}の方向　·　徒歩 約${walk}分</div>
+      <div class="acc">${esc(p.name)}まで<br>${basis}／誤差 ±${Math.round(lastFix.acc)}m${rough}</div>
+    </div></div>`;
+}
+function showGeoErr(msg){
+  if(!geoActive) return;
+  geoActive.slot.innerHTML=`<div class="geobox err"><div class="msg">${esc(msg)}</div></div>`;
+}
+async function startGeo(key, btn, slot){
+  stopGeo();
+  geoActive={key,btn,slot}; lastFix=null;
+  btn.setAttribute('aria-expanded','true');
+  slot.innerHTML='<div class="geobox err"><div class="msg">現在地を確認しています…</div></div>';
+
+  if(!navigator.geolocation){ showGeoErr('この端末では現在地を取得できません。「ここへの道順」から地図アプリを開いてください。'); return; }
+
+  // iOS はコンパスに許可が要る（タップ直後でないと出ない）
+  try{
+    if(typeof DeviceOrientationEvent!=='undefined' && DeviceOrientationEvent.requestPermission){
+      const r=await DeviceOrientationEvent.requestPermission();
+      if(r==='granted') window.addEventListener('deviceorientation',onHeading);
+    } else {
+      window.addEventListener('deviceorientationabsolute',onHeading);
+      window.addEventListener('deviceorientation',onHeading);
+    }
+  }catch(e){}
+
+  geoWatch=navigator.geolocation.watchPosition(
+    pos=>{ lastFix={lat:pos.coords.latitude,lng:pos.coords.longitude,acc:pos.coords.accuracy||0};
+           paintGeo(); },
+    err=>{ showGeoErr(err.code===1
+      ? '位置情報が許可されていません。端末の設定でこのページに許可を出すか、「ここへの道順」から地図アプリを開いてください。'
+      : '現在地を取得できませんでした。屋内や地下だと失敗しやすいので、少し移動して試してみてください。'); },
+    {enableHighAccuracy:true, maximumAge:5000, timeout:15000}
+  );
+}
+document.addEventListener('click', e=>{
+  const btn=e.target.closest('[data-geo]');
+  if(!btn) return;
+  const slot=btn.parentElement.querySelector('.geoslot');
+  if(geoActive && geoActive.btn===btn){ stopGeo(); return; }
+  startGeo(btn.dataset.geo, btn, slot);
+});
+function renderDay(){
+  const d=TRIP.days.find(x=>x.date===curDate) || TRIP.days[0];
+  if(!d){ $('v-day').innerHTML=''; return; }
+  const dt=new Date(d.date+'T00:00:00');
+  const isToday=d.date===sfDate(), now=sfMinutes();
+  let h=`<div class="dayhead">
+    <div class="big">${dt.getMonth()+1}月${dt.getDate()}日<span style="font-size:16px;color:var(--dim)">（${WD[dt.getDay()]}）</span></div>
+    <div class="meta">${esc(d.label)}　·　${esc(d.base||'')}</div></div>`;
+
+  if(d.anchor) h+=`<div class="anchor-card"><div class="ttl">${d.anchor.time}</div>
+    <div class="tx"><b>この日の基準点</b>${esc(d.anchor.text)}</div></div>`;
+
+  if(d.items.length){
+    h+='<div class="tl">';
+    let drawn=false;
+    d.items.forEach(it=>{
+      if(isToday && !drawn && it.t && toMin(it.t)>now){
+        h+=`<div class="it" style="padding:0"><div class="time" style="color:var(--red);font-size:11px;padding-top:0">いま</div>
+          <div class="rail" style="padding-top:0"><div class="node" style="background:var(--red);border-color:var(--red);width:8px;height:8px"></div></div>
+          <div class="body" style="padding:0"><div style="height:1px;background:var(--red);opacity:.5;margin-top:4px"></div></div></div>`;
+        drawn=true;
+      }
+      const past = isToday && it.t && toMin(it.t) < now;
+      h+=`<div class="it ${it.type}" style="${past?'opacity:.45':''}">
+        <div class="time">${esc(it.t||'')}</div>
+        <div class="rail"><div class="node"></div></div>
+        <div class="body">
+          <div class="ttl">${it.icon?`<span class="icon">${it.icon}</span>`:''}${esc(it.title)}${
+            it.dur?`<span class="dur">${esc(it.dur)}</span>`:''}</div>
+          ${it.place?`<div class="place">${esc(it.place)}</div>`:''}
+          ${it.note?`<div class="note">${esc(it.note)}</div>`:''}
+          ${(it.map||it.qr)?`<div class="chips">${it.map?mapChip(it.map):''}${
+            it.qr?'<button class="chip" onclick="openQR()">📱 QRを表示</button>':''}</div>`:''}
+        </div></div>`;
+    });
+    h+='</div>';
+  }
+  if(d.fallback) h+=`<div class="fallback"><b>押したときは</b><p>${esc(d.fallback)}</p></div>`;
+  if(d.placeholder) h+=`<div class="blank"><div class="h">予定はこれから</div><p>${esc(d.placeholder)}</p></div>`;
+  $('v-day').innerHTML=h;
+}
+const toMin = t => { const [a,b]=t.split(':').map(Number); return a*60+b; };
+
+/* ---- 日程 ---- */
+function renderPlan(){
+  const phases=[['到着・準備','2026-08-26','2026-08-27'],
+                ['本番','2026-08-28','2026-08-30'],
+                ['観光・帰国','2026-08-31','2026-09-02']];
+  let h='<section style="padding-bottom:0"><h2 class="sec">全日程</h2></section>';
+  phases.forEach(([nm,a,b])=>{
+    h+=`<div class="phase">${nm}</div>`;
+    TRIP.days.filter(d=>d.date>=a&&d.date<=b).forEach(d=>{
+      const dt=new Date(d.date+'T00:00:00');
+      const n=d.items.filter(i=>i.t).length;
+      h+=`<div class="dcard" data-d="${d.date}">
+        <div class="dt"><div class="n">${dt.getMonth()+1}/${dt.getDate()}</div><div class="w">${WD[dt.getDay()]}</div></div>
+        <div class="info"><div class="lb">${esc(d.label)}</div><div class="bs">${esc(d.base||'')}</div></div>
+        <div class="cnt">${n?n+'件':'—'}</div></div>`;
+    });
+  });
+  $('v-plan').innerHTML=h;
+  $('v-plan').querySelectorAll('.dcard').forEach(c=>c.onclick=()=>{
+    curDate=c.dataset.d; renderDtabs(); renderDay(); go('day'); window.scrollTo(0,0); });
+}
+
+/* ---- マップ ---- */
+const mst=$('mstage'), mcv=$('mcanvas');
+let mImg=null, nW=1, nH=1, tx=0, ty=0, sc=1, minSc=1;
+const applyT=()=>mcv.style.transform=`translate(${tx}px,${ty}px) scale(${sc})`;
+function mfit(){ const w=mst.clientWidth,h=mst.clientHeight;
+  minSc=Math.min(w/nW,h/nH); sc=minSc; tx=(w-nW*sc)/2; ty=(h-nH*sc)/2; applyT(); rescale(); }
+function mclamp(){ const w=mst.clientWidth,h=mst.clientHeight;
+  sc=Math.max(minSc*0.9,Math.min(sc,minSc*14));
+  const iw=nW*sc, ih=nH*sc;
+  tx=iw<=w?(w-iw)/2:Math.min(0,Math.max(w-iw,tx));
+  ty=ih<=h?(h-ih)/2:Math.min(0,Math.max(h-ih,ty)); }
+function zoomAt(cx,cy,f){ const px=(cx-tx)/sc,py=(cy-ty)/sc; sc*=f; mclamp();
+  tx=cx-px*sc; ty=cy-py*sc; mclamp(); applyT(); rescale(); }
+function rescale(){
+  const show = sc > minSc*2.1;
+  mcv.querySelectorAll('.pin').forEach(e=>{
+    e.style.transform=`scale(${1/sc})`;
+    e.classList.toggle('lb', show);
+  });
+}
+
+function loadMap(id){
+  curMap=id; mcv.innerHTML='';
+  mImg=new Image();
+  mImg.onload=()=>{ nW=mImg.naturalWidth; nH=mImg.naturalHeight; mfit(); drawPins(); };
+  mImg.src=MAPS.find(m=>m.id===id).src;
+  mcv.appendChild(mImg);
+  renderMtabs();
+}
+function drawPins(){
+  mcv.querySelectorAll('.pin').forEach(e=>e.remove());
+  (PINS[curMap]||[]).forEach(p=>{
+    const el=document.createElement('div');
+    el.className='pin'+(hidden.has(p.cat)?' dim':'');
+    el.style.left=(p.x/100*nW)+'px'; el.style.top=(p.y/100*nH)+'px';
+    el.style.transform=`scale(${1/sc})`;
+    el.innerHTML=`<i style="background:${CATS[p.cat]||CATS.other}"></i><b>${esc(p.name)}</b>`;
+    mcv.appendChild(el);
+  });
+  if(hiSpot){
+    const el=document.createElement('div');
+    el.className='pin hi';
+    el.style.left=(hiSpot.x/100*nW)+'px'; el.style.top=(hiSpot.y/100*nH)+'px';
+    el.style.transform=`scale(${1/sc})`;
+    el.innerHTML=`<i style="background:#F5C518"></i><b>${esc(hiSpot.label)}</b>`;
+    mcv.appendChild(el);
+  }
+}
+function renderMtabs(){
+  $('mtabs').innerHTML='';
+  MAPS.forEach(m=>{
+    const b=document.createElement('button');
+    b.className='mtab'; b.setAttribute('aria-selected', m.id===curMap?'true':'false');
+    b.textContent=m.label; b.onclick=()=>{ hiSpot=null; loadMap(m.id); };
+    $('mtabs').appendChild(b);
+  });
+}
+function renderFilter(){
+  $('mfilter').innerHTML='';
+  Object.keys(CATNAME).forEach(c=>{
+    const b=document.createElement('button');
+    b.className='fchip'; b.setAttribute('aria-pressed', hidden.has(c)?'false':'true');
+    b.innerHTML=`<span class="dot" style="background:${CATS[c]}"></span>${CATNAME[c]}`;
+    b.onclick=()=>{ hidden.has(c)?hidden.delete(c):hidden.add(c);
+      b.setAttribute('aria-pressed', hidden.has(c)?'false':'true'); drawPins(); };
+    $('mfilter').appendChild(b);
+  });
+}
+const pts=new Map(); let st=null, pd=0;
+mst.addEventListener('pointerdown',e=>{ mst.setPointerCapture(e.pointerId);
+  pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(pts.size===1) st={x:e.clientX,y:e.clientY,tx,ty};
+  if(pts.size===2) pd=pdist(); });
+mst.addEventListener('pointermove',e=>{ if(!pts.has(e.pointerId))return;
+  pts.set(e.pointerId,{x:e.clientX,y:e.clientY});
+  if(pts.size===1&&st){ tx=st.tx+e.clientX-st.x; ty=st.ty+e.clientY-st.y; mclamp(); applyT(); }
+  else if(pts.size===2){ const d=pdist();
+    if(pd>0){ const c=pcen(), r=mst.getBoundingClientRect(); zoomAt(c.x-r.left,c.y-r.top,d/pd); }
+    pd=d; } });
+const endP=e=>{ pts.delete(e.pointerId); if(pts.size<2)pd=0; if(!pts.size)st=null; };
+mst.addEventListener('pointerup',endP); mst.addEventListener('pointercancel',endP);
+const pdist=()=>{const a=[...pts.values()];return Math.hypot(a[0].x-a[1].x,a[0].y-a[1].y)};
+const pcen=()=>{const a=[...pts.values()];return{x:(a[0].x+a[1].x)/2,y:(a[0].y+a[1].y)/2}};
+mst.addEventListener('wheel',e=>{ e.preventDefault(); const r=mst.getBoundingClientRect();
+  zoomAt(e.clientX-r.left,e.clientY-r.top,e.deltaY<0?1.12:1/1.12); },{passive:false});
+$('mzin').onclick=()=>zoomAt(mst.clientWidth/2,mst.clientHeight/2,1.4);
+$('mzout').onclick=()=>zoomAt(mst.clientWidth/2,mst.clientHeight/2,1/1.4);
+$('mzfit').onclick=mfit;
+
+/* ---- 情報 ---- */
+function renderInfo(){
+  let h='<section><h2 class="sec">予約</h2>';
+  TRIP.bookings.forEach(b=>{
+    h+=`<div class="card"><div class="cat">${esc(b.cat)}</div>
+      <div class="nm">${esc(b.name)}</div><div class="dt">${esc(b.detail)}</div>
+      ${b.code?`<div class="code" data-copy="${esc(b.code)}">
+        <span class="lbl">確認番号</span><span class="val">${esc(b.code)}</span><span class="cp">コピー</span></div>`:''}
+      ${b.note?`<div class="nt">${esc(b.note)}</div>`:''}
+      ${b.map?`<div class="chips">${mapChip(b.map)}</div>`:''}
+      ${b.dir?`<div class="chips"><a class="chip" target="_blank" rel="noopener"
+        href="https://www.google.com/maps/dir/?api=1&destination=${
+        encodeURIComponent(b.dir+' San Francisco')}&travelmode=walking">🚶 ここへの道順</a></div>`:''}
+      </div>`;
+  });
+  h+='</section><section><h2 class="sec">緊急連絡先</h2>';
+  TRIP.emergency.forEach(e=>{
+    h+=`<a class="tel" href="tel:${esc(e.tel.replace(/[^0-9+]/g,''))}">
+      <span class="ic">📞</span><span><span class="nm">${esc(e.name)}</span>
+      <span class="no">${esc(e.tel)}</span>
+      ${e.note?`<span class="nt">${esc(e.note)}</span>`:''}</span></a>`;
+  });
+  h+='</section><section><h2 class="sec">現地のこと</h2>';
+  TRIP.tips.forEach(t=>h+=`<div class="tip"><h4>${esc(t.h)}</h4><p>${esc(t.b)}</p></div>`);
+  h+='</section>';
+  $('v-info').innerHTML=h;
+  $('v-info').querySelectorAll('.code').forEach(c=>c.onclick=async()=>{
+    try{ await navigator.clipboard.writeText(c.dataset.copy); toast('コピーしました'); }
+    catch(e){ toast('コピーできませんでした'); }});
+}
+
+/* ---- 準備 ---- */
+function renderPrep(){
+  const all=TRIP.checklist.reduce((n,g)=>n+g.items.length,0);
+  const done=Object.values(ckState).filter(Boolean).length;
+  let h='<section style="padding-bottom:0"><h2 class="sec">自分の予定</h2>';
+  if(PROF){
+    const st=(PROF.stays||[]).map((x,i)=>
+      `${esc(x.name)}${x.lat?' <span style="color:var(--ok)">位置あり</span>':''}`).join(' → ');
+    h+=`<div class="cfg"><div class="ct">いま登録されている内容</div><div class="cl">
+      着 <b>${esc(PROF.arrive.date)} ${esc(PROF.arrive.time)}</b>${
+        PROF.arrive.flight?'（'+esc(PROF.arrive.flight)+'）':''}<br>
+      帰 <b>${esc(PROF.depart.date)} ${esc(PROF.depart.time)}</b>${
+        PROF.depart.flight?'（'+esc(PROF.depart.flight)+'）':''}<br>
+      宿 ${st||'—'}<br>
+      バッジ ${PROF.badge&&PROF.badge.time?`<b>${esc(PROF.badge.date)} ${esc(PROF.badge.time)}</b>`:'未設定'}
+      </div><div class="cb">
+      <button class="pri" id="cfgEdit">予定を直す</button>
+      ${(PROF.stays||[]).map((x,i)=>
+        `<button data-pin="${i}">${esc(x.name)}の位置を記録</button>`).join('')}
+      </div></div>`;
+    h+=`<p style="font-size:11.5px;color:var(--dim);margin:0 0 4px;line-height:1.7">
+      「位置を記録」は宿に着いてから押してください。そのときのGPSを覚えて、
+      以降どこからでも宿までの方角と距離が出せるようになります。</p>`;
+  }
+  h+='</section>';
+  h+=`<section style="padding-bottom:8px"><h2 class="sec">出発の準備</h2>
+    <div class="prog" style="margin:0 0 16px"><div class="bar"><i style="width:${all?done/all*100:0}%"></i></div>
+    <div class="pc">${done}/${all}</div></div>`;
+  TRIP.checklist.forEach((g,gi)=>{
+    const dn=g.items.filter((_,i)=>ckState[gi+'-'+i]).length;
+    h+=`<div class="grp"><div class="gh">${esc(g.g)}<span class="n">${dn}/${g.items.length}</span></div>`;
+    g.items.forEach((it,i)=>{
+      const k=gi+'-'+i;
+      h+=`<div class="ck${ckState[k]?' on':''}" data-k="${k}">
+        <span class="box">✓</span><span class="tx">${esc(it)}</span></div>`;
+    });
+    h+='</div>';
+  });
+  h+='</section>';
+  $('v-prep').innerHTML=h;
+  const ed=$('cfgEdit'); if(ed) ed.onclick=()=>openSetup(PROF);
+  $('v-prep').querySelectorAll('[data-pin]').forEach(b=>
+    b.onclick=()=>pinCurrentStay(+b.dataset.pin));
+  $('v-prep').querySelectorAll('.ck').forEach(c=>c.onclick=()=>{
+    ckState[c.dataset.k]=!ckState[c.dataset.k]; saveCk(); renderPrep(); });
+}
+
+/* ---- QR ---- */
+window.openQR=()=>{};
+
+/* ---- XP ---- */
+const XK='sf2026-xp', xpDone=(()=>{try{return JSON.parse(localStorage.getItem(XK))||{}}catch(e){return{}}})();
+const saveXp=()=>{try{localStorage.setItem(XK,JSON.stringify(xpDone))}catch(e){}};
+let evTab='xp', xpSeg='always', xpDay='全', xpOpen=null;
+const DAYS3=['金','土','日'];
+
+/* 行を1つ描く。key があれば「行った」記録の対象になる */
+function xpRow(o){
+  const k=o.key||'', on=k&&xpDone[k], op=xpOpen===o.uid;
+  const L=o.l||{};
+  return `<div class="row2${op?' open':''}${on?' done':''}" data-uid="${o.uid}">
+    <div class="rowhd" data-tog="${o.uid}">
+      ${o.t?`<div class="rt">${esc(o.t)}</div>`:''}
+      <div class="rn">${o.badge||''}${esc(o.n)}</div>
+      ${o.days?`<div class="sd">${DAYS3.map(d=>
+        `<span class="${o.days.includes(d)?'on':''}">${d}</span>`).join('')}</div>`:''}
+      <div class="cv">›</div>
+    </div>
+    <div class="det">
+      ${o.d?`<div class="dd">${esc(o.d)}</div>`:''}
+      ${L.a?`<div class="meta"><span class="k">場所</span><span class="v">${esc(L.a)}</span></div>`:''}
+      <div class="meta"><span class="k">時間</span><span class="v">${esc(o.time||'—')}</span></div>
+      ${o.extra?`<div class="meta"><span class="k">メモ</span><span class="v">${esc(o.extra)}</span></div>`:''}
+      <div class="acts">
+        ${L.m?`<button class="go" data-jump="${L.m}|${L.x}|${L.y}|${esc(L.a)}">マップで見る</button>`:''}
+        ${k?`<button class="dn" data-done="${k}" aria-pressed="${on?'true':'false'}">${
+          on?'行った ✓':'行ったことにする'}</button>`:''}
+      </div>
+    </div></div>`;
+}
+
+function renderXp(){
+  const X=TRIP.xp; let u=0; const uid=()=>'x'+(u++);
+  const TT={xp:'PokémonXP',unite:'ポケモンユナイト',go:'ポケモンGO'};
+  let h=`<section style="padding-bottom:10px"><h2 class="sec">${TT[evTab]}</h2>
+    <div class="seg" style="padding:0">
+      <button data-e="xp" aria-selected="${evTab==='xp'}">XP</button>
+      <button data-e="unite" aria-selected="${evTab==='unite'}">UNITE</button>
+      <button data-e="go" aria-selected="${evTab==='go'}">GO</button>
+    </div>
+    ${evTab==='xp'?`<div class="seg" style="padding:10px 0 0">
+      <button data-s="always" aria-selected="${xpSeg==='always'}">予約不要</button>
+      <button data-s="lot" aria-selected="${xpSeg==='lot'}">抽選結果</button>
+      <button data-s="side" aria-selected="${xpSeg==='side'}">サイドイベント</button>
+    </div>`:''}</section>`;
+
+  if(evTab==='unite'){ h+=renderUnite(uid); }
+  if(evTab==='go'){ h+=renderGo(uid); }
+  if(evTab!=='xp'){ paintXp(h); return; }
+
+  if(xpSeg==='always'){
+    h+=`<section style="padding-top:0">
+      <div class="banner"><b>申込なしで行ける</b>3日とも同じ内容で、抽選も予約も要りません。
+      定員に達すると入れないものはあります。項目をタップすると、何をする場所か・どこにあるかが出ます。</div>`;
+    X.always.forEach((g,gi)=>{
+      h+=`<div class="grp" style="margin-top:14px"><div class="gh">${esc(g.g)}</div>`;
+      g.items.forEach((it,i)=>h+=xpRow({uid:uid(),key:'a'+gi+'-'+i,n:it.n,d:it.d,l:it.l,
+        time:'開催中は随時（3日とも）'}));
+      h+='</div>';
+    });
+
+    h+=`<h3 class="sub">パネル（着席・日替わり）</h3>${dayFilter()}`;
+    DAYS3.filter(d=>xpDay==='全'||xpDay===d).forEach(d=>{
+      h+=`<div class="grp" style="margin-top:10px"><div class="gh">${d}曜</div>`;
+      X.panels[d].forEach((n,i)=>h+=xpRow({uid:uid(),key:'p'+d+i,n,days:d,l:X.panels.loc,
+        time:'未公開（会場掲示で確認）',extra:'着席制。その日しかない回なので、見たいものは早めに場所を押さえる'}));
+      h+='</div>';
+    });
+
+    h+=`<h3 class="sub">ミート＆グリート（先着）</h3>`;
+    DAYS3.filter(d=>xpDay==='全'||xpDay===d).forEach(d=>{
+      h+=`<div class="grp" style="margin-top:10px"><div class="gh">${d}曜</div>`;
+      X.greet[d].forEach((n,i)=>h+=xpRow({uid:uid(),key:'g'+d+i,n,days:d,l:X.greet.loc,
+        time:'未公開（先着・並んだ順）'}));
+      h+='</div>';
+    });
+    h+='</section>';
+  }
+
+  if(xpSeg==='lot'){
+    const R=X.lot_result;
+    h+='<section style="padding-top:0">';
+    if(R && R.status==='none'){
+      h+=`<div class="result"><h4>${esc(R.head)}</h4><p>${esc(R.body)}</p>
+        <button class="cta" data-s="always">予約不要のものを見る</button></div>
+        <p style="padding:0 16px;margin:0 0 4px;font-size:12px;color:var(--dim);line-height:1.7">
+        ${esc(R.keep)}</p>`;
+    } else {
+      h+=`<div class="banner"><b>結果待ち</b>ここは全部「先行受付リスト（抽選申込）」が要る枠です。</div>`;
+    }
+    h+=`${dayFilter()}
+      <h3 class="sub">ワークショップ（3日とも同じ時間）</h3>
+      <div class="grp${R&&R.status==='none'?' lost':''}">`;
+    X.workshops.filter(w=>xpDay==='全'||w.d.includes(xpDay)).forEach(w=>
+      h+=xpRow({uid:uid(),t:w.t,n:w.n,d:w.m||'',l:w.l,days:w.d,
+        time:`${w.t}〜（金土日とも同じ時間）`,
+        extra: X.lot_result && X.lot_result.status==='none'
+          ? 'この枠は落選。当日キャンセルの案内が出ることはある'
+          : '同じ時間で他とぶつかる場合は、金曜にA・土曜にBと日をずらせば両方いける'}));
+    h+=`</div><h3 class="sub">ゲスト枠（日替わり・その日限り）</h3>
+      <div class="grp${R&&R.status==='none'?' lost':''}">`;
+    X.guests.filter(g=>xpDay==='全'||g.d.includes(xpDay)).forEach(g=>
+      h+=xpRow({uid:uid(),t:g.t,n:g.n,l:g.l,days:g.d,
+        badge:`<span class="kk ${g.k}">${g.k==='s'?'サイン':'グリート'}</span>`,
+        time:`${g.t}〜 ／ ${g.d}曜のみ`,
+        extra: X.lot_result && X.lot_result.status==='none'
+          ? 'この枠は落選。サイン会は抽選のみなので、当日券はない'
+          : 'その日しかない枠。ワークショップと重なったらこちらを優先する判断もある'}));
+    h+='</div></section>';
+  }
+
+  if(xpSeg==='side'){
+    h+=`<section style="padding-top:0">
+      <div class="banner"><b>別途登録・有料</b>${esc(X.side.note)}</div>${dayFilter()}`;
+    X.side.groups.filter(g=>xpDay==='全'||g.d.includes(xpDay)).forEach(g=>{
+      h+=`<div class="grp" style="margin-top:12px"><div class="gh">${esc(g.g)}
+        <span class="n">${esc(g.d)}</span></div>`;
+      if(g.warn) h+=`<div style="padding:11px 14px 2px"><div class="warnline">${esc(g.warn)}</div></div>`;
+      g.items.forEach(it=>h+=xpRow({uid:uid(),n:it,l:X.side.loc,time:`${g.d}曜 ／ 時間未公開`,
+        extra:'締切は開始15分前（オープン選手権系は30分前）'}));
+      h+='</div>';
+    });
+    h+='</section>';
+  }
+  h+=`<section style="padding-top:4px"><p style="font-size:11px;color:var(--dim);margin:0">
+    ${esc(X.note)}</p></section>`;
+
+  paintXp(h);
+}
+
+function paintXp(h){
+  $('v-xp').innerHTML=h;
+  $('v-xp').querySelectorAll('[data-e]').forEach(b=>b.onclick=()=>{
+    evTab=b.dataset.e; xpOpen=null; xpDay='全'; renderXp(); window.scrollTo(0,0); });
+  $('v-xp').querySelectorAll('[data-s]').forEach(b=>b.onclick=()=>{
+    xpSeg=b.dataset.s; xpOpen=null; renderXp(); window.scrollTo(0,0); });
+  $('v-xp').querySelectorAll('.dayf button').forEach(b=>b.onclick=()=>{
+    xpDay=b.dataset.d; xpOpen=null; renderXp(); });
+  $('v-xp').querySelectorAll('[data-tog]').forEach(b=>b.onclick=()=>{
+    const id=b.dataset.tog, was=xpOpen===id;
+    xpOpen = was ? null : id;
+    renderXp();
+    if(!was) requestAnimationFrame(()=>{
+      const el=$('v-xp').querySelector(`[data-uid="${id}"]`);
+      if(el) el.scrollIntoView({block:'center',behavior:'smooth'});
+    });
+  });
+  $('v-xp').querySelectorAll('[data-done]').forEach(b=>b.onclick=e=>{
+    e.stopPropagation(); const k=b.dataset.done;
+    xpDone[k]=!xpDone[k]; saveXp(); renderXp(); });
+  $('v-xp').querySelectorAll('[data-jump]').forEach(b=>b.onclick=e=>{
+    e.stopPropagation();
+    const [m,x,y,label]=b.dataset.jump.split('|');
+    jumpToMap(m,+x,+y,label);
+  });
+  $('v-xp').querySelectorAll('[data-go]').forEach(b=>b.onclick=()=>{
+    const k=b.dataset.go; xpDone[k]=!xpDone[k]; saveXp(); renderXp(); });
+}
+
+/* ---- ユナイト（観戦用） ---- */
+function renderUnite(uid){
+  const U=TRIP.unite;
+  let h=`<section style="padding-top:0">
+    <div class="banner"><b>観戦</b>グループステージは8組。試合の時間割はまだ出ていません。
+    出たら日程タブに入れます。</div><h3 class="sub">どこで見るか</h3><div class="grp">`;
+  U.watch.forEach(w=>h+=xpRow({uid:uid(),n:w.n,d:w.d,l:w.l,time:'—'}));
+  h+=`</div><h3 class="sub">グループ組み合わせ</h3>
+    <div class="legend">日本のチームを金色にしてあります。5チームが5つの組に分かれているので、
+    どの組を追うかで見る時間が変わります。</div><div style="height:12px"></div><div class="grid2">`;
+  U.groups.forEach(g=>{
+    h+=`<div class="gcard"><div class="gt">GROUP ${g.g}</div>`;
+    g.teams.forEach(([r,n])=>h+=`<div class="tm${r==='JP'?' jp':''}">
+      <span class="rg">${esc(r)}</span><span class="nm2">${esc(n)}</span></div>`);
+    h+='</div>';
+  });
+  h+=`</div><section style="padding-top:14px"><p style="font-size:11px;color:var(--dim);margin:0">
+    ${esc(U.note)}</p></section></section>`;
+  return h;
+}
+
+/* ---- ポケモンGO（参加用） ---- */
+function renderGo(uid){
+  const G=TRIP.go;
+  let h=`<section style="padding-top:0">
+    <div class="banner"><b>開催期間</b>${esc(G.window)}<br>
+    前半（8/25〜28）は日本にいる間に始まります。着く前から回せます。</div>
+    <h3 class="sub">やること</h3>`;
+  G.todo.forEach(x=>{
+    const on=xpDone[x.key];
+    h+=`<div class="todo${x.warn?' w':''}${on?' done':''}">
+      <div class="th" data-go="${x.key}">
+        <span class="tw">${esc(x.t)}</span>
+        <span class="tn">${esc(x.n)}</span>
+        <span class="tc">✓</span></div>
+      <div class="td">${esc(x.d)}</div>
+      ${x.url?`<div class="ta"><a href="${x.url}" target="_blank" rel="noopener">配信を開く</a></div>`:''}
+    </div>`;
+  });
+  h+=`<h3 class="sub">期間の分かれ目</h3><div class="grp">`;
+  G.spawn.forEach(sp=>h+=xpRow({uid:uid(),n:sp.n,d:sp.m,time:sp.d}));
+  h+=`</div><h3 class="sub">GO Pass の特典</h3><div class="grp">`;
+  G.pass.forEach(p=>h+=xpRow({uid:uid(),n:p.n,d:p.d,time:'期間中'}));
+  h+=`</div><h3 class="sub">会場のGO関連</h3><div class="grp">`;
+  G.places.forEach(p=>h+=xpRow({uid:uid(),n:p.n,d:p.d,l:p.l,time:'開催中は随時'}));
+  h+=`</div><section style="padding-top:14px"><p style="font-size:11px;color:var(--dim);margin:0">
+    ${esc(G.note)}</p></section></section>`;
+  return h;
+}
+
+function dayFilter(){
+  return `<div class="dayf" style="padding-left:0;padding-right:0">${
+    ['全','金','土','日'].map(d=>`<button data-d="${d}" aria-selected="${xpDay===d}">${
+      d==='全'?'すべて':d+'曜'}</button>`).join('')}</div>`;
+}
+
+/* マップへ飛んで該当地点を光らせる */
+let hiSpot=null, jumping=false;
+function jumpToMap(m,x,y,label){
+  hiSpot={x,y,label}; jumping=true;
+  go('map'); window.scrollTo(0,0);
+  const after=()=>{
+    const w=mst.clientWidth,h=mst.clientHeight;
+    sc=Math.max(minSc*2.6,minSc); mclamp();
+    tx=w/2-(x/100*nW)*sc; ty=h/2-(y/100*nH)*sc;
+    mclamp(); applyT(); drawPins(); rescale();
+    toast(label.length>22?label.slice(0,22)+'…':label);
+    mst.scrollIntoView({block:'center'});
+    setTimeout(()=>jumping=false,400);
+  };
+  if(curMap!==m || !mImg){
+    curMap=m; mcv.innerHTML=''; renderMtabs();
+    mImg=new Image();
+    mImg.onload=()=>{ nW=mImg.naturalWidth; nH=mImg.naturalHeight; mfit(); after(); };
+    mImg.src=MAPS.find(z=>z.id===m).src; mcv.appendChild(mImg);
+    if(!$('mfilter').children.length) renderFilter();
+  } else setTimeout(after,60);
+}
+
+/* ---- nav ---- */
+function go(v){
+  stopGeo();
+  document.querySelectorAll('.view').forEach(x=>x.classList.toggle('on', x.id==='v-'+v));
+  document.querySelectorAll('nav button').forEach(b=>
+    b.setAttribute('aria-selected', b.dataset.v===v?'true':'false'));
+  document.querySelector('header').style.display = (v==='day') ? '' : 'none';
+  if(v==='map' && !mImg) { loadMap(curMap); renderFilter(); }
+  if(v==='map' && !jumping) setTimeout(()=>{ if(!jumping) mfit(); },60);
+}
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{ go(b.dataset.v); window.scrollTo(0,0); });
+
+window.addEventListener('resize',()=>{ if(mImg) mfit(); });
+function boot(){
+  loadProfile();
+  if(PROF && PROF.arrive && PROF.arrive.date){
+    (PROF.stays||[]).forEach((x,i)=>{ if(x.lat) TRIP.places['stay'+i]=
+      {name:x.name, addr:x.addr||'', lat:x.lat, lng:x.lng}; });
+    applyProfile();
+    curDate = TRIP.days.some(d=>d.date===sfDate()) ? sfDate() : TRIP.days[0].date;
+    renderDtabs(); renderDay(); renderPlan(); renderXp(); renderInfo(); renderPrep();
+  } else {
+    TRIP.days=[{date:'2026-08-28',label:'—',items:[],base:''}];
+    renderXp(); renderInfo(); renderPrep();
+    openSetup(null);
+  }
+}
+tick(); setInterval(tick,20000);
+boot();
+</script>
+</body>
+</html>

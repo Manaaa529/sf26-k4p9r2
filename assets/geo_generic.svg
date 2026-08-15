@@ -1,0 +1,22 @@
+<svg viewBox="0 0 340 250" xmlns="http://www.w3.org/2000/svg" font-family="system-ui,sans-serif">
+  <defs><marker id="ar" markerWidth="7" markerHeight="7" refX="5" refY="2.5" orient="auto">
+    <path d="M0,0 L5,2.5 L0,5 Z" fill="#463659"/></marker></defs>
+  <line x1="62" y1="46" x2="62" y2="176" stroke="#463659" stroke-width="2" stroke-dasharray="5 5" marker-end="url(#ar)"/>
+  <g font-size="9" fill="#9C8FB0" text-anchor="middle">
+    <text x="92" y="78">BART 約35分</text>
+    <text x="92" y="148">徒歩 5〜10分</text>
+  </g>
+  <g><circle cx="62" cy="40" r="7" fill="#241C33" stroke="#4CA8FF" stroke-width="2"/>
+    <text x="82" y="37" font-size="13" font-weight="700" fill="#4CA8FF">SFO</text>
+    <text x="82" y="51" font-size="10" fill="#9C8FB0">BARTで市内へ。改札は入退場ともタッチ</text></g>
+  <g><circle cx="62" cy="110" r="7" fill="#7B4FB5" stroke="#A97FE0" stroke-width="2"/>
+    <text x="82" y="107" font-size="13" font-weight="700" fill="#EDE9E0">Powell St 駅</text>
+    <text x="82" y="121" font-size="10" fill="#9C8FB0">Union Square 周辺の宿はここが最寄り</text></g>
+  <g><circle cx="62" cy="180" r="9" fill="#F5C518" stroke="#F5C518" stroke-width="2"/>
+    <text x="82" y="177" font-size="13" font-weight="800" fill="#F5C518">Moscone Center</text>
+    <text x="82" y="191" font-size="10" fill="#9C8FB0">⑤⑥ は 4th St を渡った West 側</text></g>
+  <line x1="62" y1="192" x2="62" y2="214" stroke="#FF8A4C" stroke-width="2" stroke-dasharray="3 4"/>
+  <circle cx="62" cy="218" r="6" fill="#241C33" stroke="#FF8A4C" stroke-width="2"/>
+  <text x="82" y="215" font-size="12" font-weight="700" fill="#FF8A4C">Chase Center</text>
+  <text x="82" y="227" font-size="10" fill="#9C8FB0">8/30 決勝のみ ／ Muni T で約20分</text>
+</svg>

@@ -1,0 +1,9 @@
+# 個人データ。絶対にコミットしない
+private/
+sf-2026.html
+*.local.json
+
+# ビルド生成物
+dist/
+__pycache__/
+.DS_Store

@@ -1,0 +1,1132 @@
+{
+  "places": {
+    "moscone": {
+      "name": "Moscone Center",
+      "addr": "747 Howard St",
+      "lat": 37.7843234,
+      "lng": -122.40069
+    },
+    "powell": {
+      "name": "Powell St 駅",
+      "addr": "899 Market St",
+      "lat": 37.7843693,
+      "lng": -122.4079981
+    },
+    "chase": {
+      "name": "Chase Center",
+      "addr": "1 Warriors Way",
+      "lat": 37.7679,
+      "lng": -122.3873
+    },
+    "sfo": {
+      "name": "San Francisco International Airport",
+      "addr": "SFO",
+      "lat": 37.6213,
+      "lng": -122.379
+    }
+  },
+  "emergency": [
+    {
+      "name": "緊急通報（警察・救急・消防）",
+      "tel": "911",
+      "note": "アメリカ共通"
+    },
+    {
+      "name": "在サンフランシスコ日本国総領事館",
+      "tel": "+1-415-780-6000",
+      "note": "パスポート紛失・事件事故。夜間休日もこの番号"
+    },
+    {
+      "name": "JAL サンフランシスコ",
+      "tel": "+1-800-525-3663",
+      "note": "便変更・遅延"
+    },
+    {
+      "name": "Moscone Center",
+      "tel": "+1-415-974-4000"
+    }
+  ],
+  "tips": [
+    {
+      "h": "時差",
+      "b": "日本より16時間遅い。SFの朝9時 = 日本の深夜1時（翌日）。連絡は相手の時間を確認してから"
+    },
+    {
+      "h": "チップ",
+      "b": "レストランは会計の18〜20%。カード端末が候補を出すのでタップするだけ。カウンター注文やファストフードは不要。ホテルの荷物1個$2〜3、ハウスキーピング1泊$3〜5"
+    },
+    {
+      "h": "税金",
+      "b": "表示価格に売上税8.625%が乗る。表示より必ず高くなる"
+    },
+    {
+      "h": "BART / Muni",
+      "b": "Clipperカード、またはApple Pay / クレカのタッチで改札を通れる。BARTは入場と退場の両方でタッチが必要。SFO⇄市内は片道$11前後"
+    },
+    {
+      "h": "電源",
+      "b": "120V / Aタイプ。日本のプラグはそのまま挿さる。100V専用機器（ドライヤー等）は非対応のものがあるので確認を"
+    },
+    {
+      "h": "気候",
+      "b": "8〜9月のSFは涼しく、朝晩は15℃前後まで下がる。日中との差が大きいので羽織るものが必須。霧が出る日も多い"
+    },
+    {
+      "h": "治安",
+      "b": "Union Square〜Moscone周辺は日中は問題ないが、Market St の南西側（Tenderloin方面）は夜は避ける。荷物は膝の上、スマホは歩きながら出さない"
+    },
+    {
+      "h": "困ったとき",
+      "b": "Registration Hall（Moscone West）に Translation Support がある。会場内のトラブルはまずここ"
+    }
+  ],
+  "xp": {
+    "note": "出典 pokemonxp.com（金85・土91・日64セッション）。変更される場合あり",
+    "always": [
+      {
+        "g": "いつでも立ち寄れる",
+        "items": [
+          {
+            "n": "Collect & Trade",
+            "d": "公式のアイテム交換スペース。交換は自由だが売買は禁止",
+            "l": {
+              "a": "Moscone South Level 2",
+              "m": "overview",
+              "x": 76,
+              "y": 41.7
+            }
+          },
+          {
+            "n": "Pin Rally（12種ピン）",
+            "d": "会場じゅうに散らばったスポットを回ってピンを集める。屋外・各ロビー・各ホールにある",
+            "l": {
+              "a": "全エリアに散在",
+              "m": "overview",
+              "x": 50,
+              "y": 40
+            }
+          },
+          {
+            "n": "ポケモンセンター ピン交換",
+            "d": "持っているピンを他の人と交換できる常設デスク",
+            "l": {
+              "a": "Hall D/E（Pokémon Center Pin Trading）",
+              "m": "lower",
+              "x": 66.9,
+              "y": 42
+            }
+          },
+          {
+            "n": "Ravensburger 40,320ピースパズル",
+            "d": "来場者みんなで巨大パズルを完成させる企画。少しだけ参加するのもあり",
+            "l": {
+              "a": "Hall F / Arts & Culture Avenue",
+              "m": "lower",
+              "x": 75,
+              "y": 16
+            }
+          },
+          {
+            "n": "What's Your Favorite?",
+            "d": "好きなポケモンのステッカーを貼っていくウォール",
+            "l": {
+              "a": "Hall F（Lower Level）",
+              "m": "lower",
+              "x": 75,
+              "y": 20
+            }
+          }
+        ]
+      },
+      {
+        "g": "体験・撮影",
+        "items": [
+          {
+            "n": "LEGO Pokémon体験",
+            "d": "定員制・先着。混みやすいので午前が狙い目",
+            "l": {
+              "a": "Hall D/E（LEGO）",
+              "m": "lower",
+              "x": 66.9,
+              "y": 42
+            }
+          },
+          {
+            "n": "Build-A-Bear ぬいぐるみ作り",
+            "d": "その場でポケモンのぬいぐるみを作れる",
+            "l": {
+              "a": "Hall F / Family & Pop Culture Quarter",
+              "m": "lower",
+              "x": 72,
+              "y": 20
+            }
+          },
+          {
+            "n": "Funko POP! Yourself",
+            "d": "自分をFunkoフィギュア風にカスタマイズ",
+            "l": {
+              "a": "Hall F / Family & Pop Culture Quarter",
+              "m": "lower",
+              "x": 72,
+              "y": 20
+            }
+          },
+          {
+            "n": "Jazwares すべり台とスクイッシュ",
+            "d": "体を動かす系。子供向けだが誰でも入れる",
+            "l": {
+              "a": "Hall F 内（詳細位置は会場掲示で確認）",
+              "m": "lower",
+              "x": 75,
+              "y": 20
+            }
+          },
+          {
+            "n": "Pokémon Sleep（寝るカビゴンと撮影）",
+            "d": "巨大な寝カビゴンと一緒に写真が撮れる",
+            "l": {
+              "a": "Hall F / Digital Games District",
+              "m": "lower",
+              "x": 80,
+              "y": 22
+            }
+          },
+          {
+            "n": "Stern ピンボール",
+            "d": "ポケモン筐体を無料でプレイできる",
+            "l": {
+              "a": "Hall F / Family & Pop Culture Quarter",
+              "m": "lower",
+              "x": 72,
+              "y": 20
+            }
+          }
+        ]
+      },
+      {
+        "g": "屋外ステージ・広場",
+        "items": [
+          {
+            "n": "ピカチュウとヨガ",
+            "d": "朝の回。開場直後の時間帯",
+            "l": {
+              "a": "Garden Stage（Yerba Buena Gardens）",
+              "m": "ybg",
+              "x": 76,
+              "y": 41.5
+            }
+          },
+          {
+            "n": "ダンスクラス（POKÉDANCE）",
+            "d": "振り付けを教わる参加型",
+            "l": {
+              "a": "Garden Stage（Yerba Buena Gardens）",
+              "m": "ybg",
+              "x": 76,
+              "y": 41.5
+            }
+          },
+          {
+            "n": "ピカチュウ ダンスパーティー",
+            "d": "見るだけでも参加してもいい",
+            "l": {
+              "a": "Garden Stage（Yerba Buena Gardens）",
+              "m": "ybg",
+              "x": 76,
+              "y": 41.5
+            }
+          },
+          {
+            "n": "ピカチュウ&フレンズ パレード",
+            "d": "Rayquaza Road を練り歩く。沿道から見る形",
+            "l": {
+              "a": "Rayquaza Road（屋外）",
+              "m": "ground",
+              "x": 64,
+              "y": 43
+            }
+          },
+          {
+            "n": "ストーリータイム",
+            "d": "お昼の回。絵本の読み聞かせ",
+            "l": {
+              "a": "Garden Stage（Yerba Buena Gardens）",
+              "m": "ybg",
+              "x": 76,
+              "y": 41.5
+            }
+          },
+          {
+            "n": "スケボー ライブデモ（Santa Cruz）",
+            "d": "コラボデッキのデモ走行",
+            "l": {
+              "a": "Rayquaza Road（Santa Cruz Skateboards）",
+              "m": "ground",
+              "x": 64,
+              "y": 43
+            }
+          },
+          {
+            "n": "ColourPop メイク",
+            "d": "コラボコスメを試せるブース",
+            "l": {
+              "a": "Yerba Buena Gardens（ColourPop x Pokémon: Glam Spot）",
+              "m": "ybg",
+              "x": 50,
+              "y": 40
+            }
+          },
+          {
+            "n": "Furfrou ヘアサロン",
+            "d": "トリミングをモチーフにしたヘアアレンジ体験",
+            "l": {
+              "a": "Yerba Buena Gardens（Furfrou's Hair Salon）",
+              "m": "ybg",
+              "x": 50,
+              "y": 40
+            }
+          },
+          {
+            "n": "ハチの粘土団子づくり",
+            "d": "Planet Bee による環境系ワークショップ",
+            "l": {
+              "a": "Hall F / Arts & Culture Avenue",
+              "m": "lower",
+              "x": 75,
+              "y": 16
+            }
+          }
+        ]
+      }
+    ],
+    "panels": {
+      "note": "抽選対象外。着席・日替わりで、時間は未公開なので会場掲示で確認",
+      "金": [
+        "アードマン制作の舞台裏",
+        "TCG Pocket 開発陣が語る",
+        "フルアートカード制作秘話",
+        "ぽこあポケモン開発スポットライト"
+      ],
+      "土": [
+        "ポケモンGO 10周年",
+        "さいとうなおき アーティストスポットライト",
+        "バトルブラケット・ボナンザ",
+        "JIMMYPAUL ファッションショー"
+      ],
+      "日": [
+        "コスプレショーケース",
+        "License to Thrill（ゲーム外のポケモン表現）",
+        "ゲーミング・ガントレット（LEGENDS Z-A）"
+      ],
+      "loc": {
+        "a": "Esplanade Ballroom ほか（会場掲示で確認）",
+        "m": "overview",
+        "x": 76,
+        "y": 41.7
+      }
+    },
+    "greet": {
+      "note": "抽選対象外。先着なので、並べば会える",
+      "金": [
+        "Bootz",
+        "JTGily",
+        "Johnstone",
+        "GlitchxCity",
+        "TrickyGym",
+        "Prncessdiana",
+        "MayPlaysTV",
+        "PokeGirlRach"
+      ],
+      "土": [
+        "AzulGG",
+        "PKMNcast",
+        "eeveelution",
+        "Duragdragon",
+        "Ginamon&KantoChlo",
+        "Jamie Jo&Pinku Kiwi"
+      ],
+      "日": [
+        "AzulGG",
+        "PKMNcast",
+        "Johnstone",
+        "GlitchxCity",
+        "Orionsound",
+        "Richard Fairlie"
+      ],
+      "loc": {
+        "a": "South Lobby / Esplanade Ballroom",
+        "m": "ground",
+        "x": 76.5,
+        "y": 41.6
+      }
+    },
+    "workshops": [
+      {
+        "t": "10:00",
+        "n": "メタモン粘土モデル（森井ユカ）",
+        "d": "金土日",
+        "m": "撮影禁止・携帯は専用バッグへ",
+        "l": {
+          "a": "Esplanade Ballroom（Fan Workshops / TCG Artist Workshops）",
+          "m": "overview",
+          "x": 76,
+          "y": 41.7
+        }
+      },
+      {
+        "t": "10:00",
+        "n": "かぎ針編みポケモン",
+        "d": "金土日",
+        "m": "基本の編み方から",
+        "l": {
+          "a": "Esplanade Ballroom（Fan Workshops / TCG Artist Workshops）",
+          "m": "overview",
+          "x": 76,
+          "y": 41.7
+        }
+      },
+      {
+        "t": "10:30",
+        "n": "ポケモンモデルキット（バンダイ）",
+        "d": "金土日",
+        "m": "当選でピカチュウキット無料",
+        "l": {
+          "a": "Esplanade Ballroom（Fan Workshops / TCG Artist Workshops）",
+          "m": "overview",
+          "x": 76,
+          "y": 41.7
+        }
+      },
+      {
+        "t": "11:00",
+        "n": "ポンポンキーホルダー（Pinku Kiwi）",
+        "d": "金土日",
+        "l": {
+          "a": "Esplanade Ballroom（Fan Workshops / TCG Artist Workshops）",
+          "m": "overview",
+          "x": 76,
+          "y": 41.7
+        }
+      },
+      {
+        "t": "11:30",
+        "n": "アートクラス（sowsow）",
+        "d": "金土日",
+        "m": "撮影禁止",
+        "l": {
+          "a": "Esplanade Ballroom（Fan Workshops / TCG Artist Workshops）",
+          "m": "overview",
+          "x": 76,
+          "y": 41.7
+        }
+      },
+      {
+        "t": "12:00",
+        "n": "ペーパーシアター（Ensky）",
+        "d": "金土日",
+        "m": "当選でキット無料・子供は保護者同伴",
+        "l": {
+          "a": "Esplanade Ballroom（Fan Workshops / TCG Artist Workshops）",
+          "m": "overview",
+          "x": 76,
+          "y": 41.7
+        }
+      },
+      {
+        "t": "12:00",
+        "n": "コスプレ耳（Eeveelution_Cosplay）",
+        "d": "金土日",
+        "m": "イーブイ進化形モチーフ",
+        "l": {
+          "a": "Esplanade Ballroom（Fan Workshops / TCG Artist Workshops）",
+          "m": "overview",
+          "x": 76,
+          "y": 41.7
+        }
+      },
+      {
+        "t": "13:00",
+        "n": "LEGO モンスターボール SMART Tagケース",
+        "d": "金土日",
+        "m": "子供は保護者同伴推奨",
+        "l": {
+          "a": "Esplanade Ballroom（Fan Workshops / TCG Artist Workshops）",
+          "m": "overview",
+          "x": 76,
+          "y": 41.7
+        }
+      },
+      {
+        "t": "13:00",
+        "n": "カードフレーム デコラ（Jamie Jo）",
+        "d": "金土日",
+        "m": "フェルト製フレームを自作",
+        "l": {
+          "a": "Esplanade Ballroom（Fan Workshops / TCG Artist Workshops）",
+          "m": "overview",
+          "x": 76,
+          "y": 41.7
+        }
+      },
+      {
+        "t": "14:00",
+        "n": "ポケモン クロスステッチ",
+        "d": "金土日",
+        "m": "道具・材料は持ち帰り可",
+        "l": {
+          "a": "Esplanade Ballroom（Fan Workshops / TCG Artist Workshops）",
+          "m": "overview",
+          "x": 76,
+          "y": 41.7
+        }
+      },
+      {
+        "t": "14:30",
+        "n": "ぽこあポケモン すみかづくり",
+        "d": "金土日",
+        "l": {
+          "a": "Esplanade Ballroom（Fan Workshops / TCG Artist Workshops）",
+          "m": "overview",
+          "x": 76,
+          "y": 41.7
+        }
+      },
+      {
+        "t": "16:00",
+        "n": "ピチュー粘土モデル（アードマン）",
+        "d": "金土日",
+        "m": "アードマンのモデルメーカーが指導",
+        "l": {
+          "a": "Esplanade Ballroom（Fan Workshops / TCG Artist Workshops）",
+          "m": "overview",
+          "x": 76,
+          "y": 41.7
+        }
+      },
+      {
+        "t": "16:00",
+        "n": "スクラップジャーナル",
+        "d": "金土日",
+        "m": "配布物やカードを持ち込むと良い",
+        "l": {
+          "a": "Esplanade Ballroom（Fan Workshops / TCG Artist Workshops）",
+          "m": "overview",
+          "x": 76,
+          "y": 41.7
+        }
+      },
+      {
+        "t": "16:30",
+        "n": "カップケーキデコ（DecoPac）",
+        "d": "金土日",
+        "l": {
+          "a": "Esplanade Ballroom（Fan Workshops / TCG Artist Workshops）",
+          "m": "overview",
+          "x": 76,
+          "y": 41.7
+        }
+      }
+    ],
+    "guests": [
+      {
+        "t": "10:00",
+        "n": "SuperDuperDani",
+        "d": "金",
+        "k": "g",
+        "l": {
+          "a": "Esplanade Ballroom（Meet & Greet）",
+          "m": "overview",
+          "x": 76,
+          "y": 41.7
+        }
+      },
+      {
+        "t": "10:30",
+        "n": "Leonhart",
+        "d": "土日",
+        "k": "g",
+        "l": {
+          "a": "Esplanade Ballroom（Meet & Greet）",
+          "m": "overview",
+          "x": 76,
+          "y": 41.7
+        }
+      },
+      {
+        "t": "12:00",
+        "n": "Purplecliffe",
+        "d": "金日",
+        "k": "g",
+        "l": {
+          "a": "Esplanade Ballroom（Meet & Greet）",
+          "m": "overview",
+          "x": 76,
+          "y": 41.7
+        }
+      },
+      {
+        "t": "12:00",
+        "n": "Alpharad",
+        "d": "日",
+        "k": "g",
+        "l": {
+          "a": "Esplanade Ballroom（Meet & Greet）",
+          "m": "overview",
+          "x": 76,
+          "y": 41.7
+        }
+      },
+      {
+        "t": "12:00",
+        "n": "アードマン制作陣 サイン会",
+        "d": "土",
+        "k": "s",
+        "l": {
+          "a": "Esplanade Ballroom（Autograph Rooms）",
+          "m": "overview",
+          "x": 76,
+          "y": 41.7
+        }
+      },
+      {
+        "t": "12:30",
+        "n": "Serebii",
+        "d": "金土",
+        "k": "g",
+        "l": {
+          "a": "Esplanade Ballroom（Meet & Greet）",
+          "m": "overview",
+          "x": 76,
+          "y": 41.7
+        }
+      },
+      {
+        "t": "12:30",
+        "n": "RealBreakingNate",
+        "d": "金",
+        "k": "g",
+        "l": {
+          "a": "Esplanade Ballroom（Meet & Greet）",
+          "m": "overview",
+          "x": 76,
+          "y": 41.7
+        }
+      },
+      {
+        "t": "12:30",
+        "n": "さいとうなおき サイン会",
+        "d": "日",
+        "k": "s",
+        "l": {
+          "a": "Esplanade Ballroom（Autograph Rooms）",
+          "m": "overview",
+          "x": 76,
+          "y": 41.7
+        }
+      },
+      {
+        "t": "14:00",
+        "n": "Alpharad",
+        "d": "金",
+        "k": "g",
+        "l": {
+          "a": "Esplanade Ballroom（Meet & Greet）",
+          "m": "overview",
+          "x": 76,
+          "y": 41.7
+        }
+      },
+      {
+        "t": "14:00",
+        "n": "RealBreakingNate & SuperDuperDani",
+        "d": "日",
+        "k": "g",
+        "l": {
+          "a": "Esplanade Ballroom（Meet & Greet）",
+          "m": "overview",
+          "x": 76,
+          "y": 41.7
+        }
+      },
+      {
+        "t": "14:30",
+        "n": "Jerky サイン会",
+        "d": "金土",
+        "k": "s",
+        "l": {
+          "a": "Esplanade Ballroom（Autograph Rooms）",
+          "m": "overview",
+          "x": 76,
+          "y": 41.7
+        }
+      },
+      {
+        "t": "16:00",
+        "n": "ポケモンGO アーティスト サイン会",
+        "d": "土",
+        "k": "s",
+        "l": {
+          "a": "Esplanade Ballroom（Autograph Rooms）",
+          "m": "overview",
+          "x": 76,
+          "y": 41.7
+        }
+      },
+      {
+        "t": "16:30",
+        "n": "Tika Matsuno サイン会",
+        "d": "金土",
+        "k": "s",
+        "l": {
+          "a": "Esplanade Ballroom（Autograph Rooms）",
+          "m": "overview",
+          "x": 76,
+          "y": 41.7
+        }
+      }
+    ],
+    "side": {
+      "note": "8月から別途登録・有料。締切は開始15分前（オープン選手権系は30分前）",
+      "groups": [
+        {
+          "g": "ポケモンカードゲーム",
+          "d": "金土日",
+          "items": [
+            "スタンダード $15／$10（短時間）／ジュニア無料",
+            "エクストラ $15",
+            "ジムリーダーチャレンジ $15",
+            "ビルド&バトル $30",
+            "6パックシールド $30",
+            "Ditto ブースターバトル $10",
+            "レイド $10",
+            "保護者大会 $15"
+          ]
+        },
+        {
+          "g": "ポケモンGO",
+          "d": "金土日",
+          "items": [
+            "競技カップ $15／$10（90分）",
+            "グレートリーグ $15",
+            "リトルカップ $15",
+            "キャッチカップ $15",
+            "ブースタードラフト $15",
+            "スカベンジャーハント $10"
+          ]
+        },
+        {
+          "g": "ポケモンユナイト",
+          "d": "金土日",
+          "items": [
+            "Gathering Point $15",
+            "First Partner Challenge $15",
+            "イーブイカップ $15（土）",
+            "3on3 マルマインバレー 無料"
+          ]
+        },
+        {
+          "g": "公式オープン選手権",
+          "d": "土",
+          "warn": "終日拘束。RK9でリスト事前提出",
+          "items": [
+            "TCG Open $30",
+            "GO Open $30",
+            "Pokémon Champions Open $30",
+            "TCG Pocket ダブルデッキ Open $30"
+          ]
+        },
+        {
+          "g": "その他",
+          "d": "金土日",
+          "items": [
+            "VGC Chaos Cup $15（スカーレット・バイオレット）",
+            "Z-A バトルクラブ 無料",
+            "TCG Pocket ダブルデッキ $15",
+            "Sisterhood League（女性・ノンバイナリー向け）$15"
+          ]
+        }
+      ],
+      "loc": {
+        "a": "Hall A/B/C（Side Events）",
+        "m": "lower",
+        "x": 65,
+        "y": 62
+      }
+    },
+    "lot_result": {
+      "status": "none",
+      "head": "抽選は全滅でした",
+      "body": "Interest List で申し込んだ枠は、今回いずれも当選しませんでした。つまり時間指定の拘束がゼロということでもあります。予約不要のものは20項目あって、こちらは申込なしで全部回れます。",
+      "keep": "リストを残してあるのは、当日キャンセルで空きが案内されることがあるのと、どの時間に何が行われているかが分かると混雑の予測に使えるためです。"
+    }
+  },
+  "unite": {
+    "note": "グループステージ8組。組み合わせは公式発表より。試合時間はまだ未公開",
+    "loc": {
+      "a": "Pokémon UNITE ステージ（Hall A/B/C）",
+      "m": "lower",
+      "x": 61.6,
+      "y": 59.7
+    },
+    "watch": [
+      {
+        "n": "会場で見る",
+        "d": "Hall A/B/C の Pokémon UNITE エリア。ステージは Hall C 側",
+        "l": {
+          "a": "Pokémon UNITE ステージ（Hall A/B/C）",
+          "m": "lower",
+          "x": 61.6,
+          "y": 59.7
+        }
+      },
+      {
+        "n": "決勝（8/30）",
+        "d": "Chase Center。Moscone ではないので移動が要る。アリーナ入場の権限が必要",
+        "l": {
+          "a": "Chase Center（8/30 決勝）",
+          "m": "overview",
+          "x": 50,
+          "y": 40
+        }
+      },
+      {
+        "n": "配信で見る",
+        "d": "会場にいても、並んでいる間や休憩中は配信の方が追いやすい",
+        "l": null
+      }
+    ],
+    "groups": [
+      {
+        "g": "A",
+        "teams": [
+          [
+            "AP-W",
+            "SIDEQUESTSG"
+          ],
+          [
+            "EU",
+            "TEAM PEPS"
+          ],
+          [
+            "JP",
+            "IGZIST"
+          ],
+          [
+            "BR",
+            "TUZZY E-SPORTS"
+          ]
+        ]
+      },
+      {
+        "g": "B",
+        "teams": [
+          [
+            "EU",
+            "BH3-ESPORT"
+          ],
+          [
+            "AP-W",
+            "STRONG BASKETBALL PLAYER 1"
+          ],
+          [
+            "JP",
+            "C,C,"
+          ],
+          [
+            "OC",
+            "LEGENDS REAPPEAR"
+          ]
+        ]
+      },
+      {
+        "g": "C",
+        "teams": [
+          [
+            "AP-W",
+            "ONIC RISE"
+          ],
+          [
+            "BR",
+            "GRÊMIO ESPORTS"
+          ],
+          [
+            "EU",
+            "VOLTICONS UNITE"
+          ],
+          [
+            "CN",
+            "DARK PEACH"
+          ]
+        ]
+      },
+      {
+        "g": "D",
+        "teams": [
+          [
+            "NA",
+            "EVIL GENIUSES"
+          ],
+          [
+            "KR",
+            "XIPTO ESPORTS"
+          ],
+          [
+            "LA-N",
+            "LOOKING FOR ORG"
+          ],
+          [
+            "LA-S",
+            "NEW GEN"
+          ]
+        ]
+      },
+      {
+        "g": "E",
+        "teams": [
+          [
+            "AP-E",
+            "ALL TIMES CHAMPION"
+          ],
+          [
+            "IN",
+            "S8UL ESPORTS"
+          ],
+          [
+            "KR",
+            "T1"
+          ],
+          [
+            "JP",
+            "ZETA DIVISION"
+          ]
+        ]
+      },
+      {
+        "g": "F",
+        "teams": [
+          [
+            "JP",
+            "FENNEL"
+          ],
+          [
+            "AP-E",
+            "TEAM NEMESIS"
+          ],
+          [
+            "NA",
+            "LUNEX GAMING"
+          ],
+          [
+            "BR",
+            "FAMES"
+          ]
+        ]
+      },
+      {
+        "g": "G",
+        "teams": [
+          [
+            "EU",
+            "KOMAÏ"
+          ],
+          [
+            "LA-S",
+            "PERU UNITE"
+          ],
+          [
+            "AP-W",
+            "EVOS FXL"
+          ],
+          [
+            "AP-E",
+            "DEEP CROSS GAMING"
+          ]
+        ]
+      },
+      {
+        "g": "H",
+        "teams": [
+          [
+            "JP",
+            "REJECT"
+          ],
+          [
+            "NA",
+            "ROOT DIGNITAS"
+          ],
+          [
+            "LA-N",
+            "STAMINA ESPORTS"
+          ]
+        ]
+      }
+    ]
+  },
+  "go": {
+    "note": "コミュニティ作成のまとめ（G47IX）が元。公式発表と食い違う場合は公式が正",
+    "window": "8/25 10:00 〜 8/30 20:00（現地時間）",
+    "todo": [
+      {
+        "t": "8/29",
+        "n": "PokémonXP 配信を30分見る",
+        "d": "twitch.tv/PokemonXP を30分視聴すると Cosmog-chu のタイムドリサーチがもらえる。この日だけ",
+        "url": "https://www.twitch.tv/PokemonXP",
+        "key": "go1",
+        "warn": true
+      },
+      {
+        "t": "8/28–30",
+        "n": "公式チャンネルを30分見る",
+        "d": "twitch.tv/pokemongo。グレートリーグのタイムドリサーチ。9:00 PDT開始",
+        "url": "https://www.twitch.tv/pokemongo",
+        "key": "go2"
+      },
+      {
+        "t": "8/28–30",
+        "n": "公式チャンネルを60分見る",
+        "d": "2025 WCS のタイムドリサーチ。30分ぶんと重複して達成できる",
+        "url": "https://www.twitch.tv/pokemongo",
+        "key": "go3"
+      },
+      {
+        "t": "8/28–30",
+        "n": "共同配信を45分見る",
+        "d": "Greetings from San Francisco リサーチ。公式チャンネルではなく co-streamer 側",
+        "key": "go4"
+      },
+      {
+        "t": "現地",
+        "n": "スカベンジャーハント",
+        "d": "サンフランシスコ現地限定。赤いWCS Tシャツはこれでしか手に入らない。緑のTシャツは配信中に出るコードで世界中どこでも",
+        "key": "go5",
+        "warn": true
+      },
+      {
+        "t": "期間中",
+        "n": "GOバトルリーグを回す",
+        "d": "1日最大15セット（期間合計75戦）。この期間はGBLで捕まえたポケモンの個体値の振れ幅が広がる。特別バトルグラウンドも復活",
+        "key": "go6"
+      },
+      {
+        "t": "期間中",
+        "n": "イベント限定のフィールドリサーチ",
+        "d": "イベント限定のリサーチ報酬あり。複数のポケモンにスペシャルアタックが実装される",
+        "key": "go7"
+      }
+    ],
+    "spawn": [
+      {
+        "d": "8/25 – 8/28",
+        "n": "前半の枠",
+        "m": "レイドとリサーチが前半用の内容。26日に着く前から日本で回し始められる"
+      },
+      {
+        "d": "8/28 – 8/30",
+        "n": "後半の枠",
+        "m": "WCS 2026 ピカチュウと Cosmog-chu（宇宙服ピカチュウ）が登場するのはこちら"
+      }
+    ],
+    "pass": [
+      {
+        "n": "GO Pass ランク10",
+        "d": "ポケモン捕獲時のほしのすな2倍"
+      },
+      {
+        "n": "GO Pass ランク20",
+        "d": "レイドからの追加経験値 3,000 XP"
+      },
+      {
+        "n": "GO Pass ランク20",
+        "d": "ジムから無料レイドパス2枚を追加取得"
+      },
+      {
+        "n": "GO Pass Deluxe",
+        "d": "$4.99。バックパックはイベント後にゲーム内ストアで販売"
+      }
+    ],
+    "places": [
+      {
+        "n": "Pokémon GO ブース",
+        "d": "Hall F の Digital Games District 内",
+        "l": {
+          "a": "Pokémon GO ブース（Hall F / Digital Games District）",
+          "m": "lower",
+          "x": 80,
+          "y": 22
+        }
+      },
+      {
+        "n": "Pokémon GO Activity Desk",
+        "d": "Hall D/E。GO関連の受付はここ",
+        "l": {
+          "a": "Pokémon GO Activity Desk（Hall D/E）",
+          "m": "lower",
+          "x": 66.9,
+          "y": 42
+        }
+      },
+      {
+        "n": "GO サイドイベント",
+        "d": "競技カップ・グレートリーグ・キャッチカップなど。別途登録・有料",
+        "l": {
+          "a": "サイドイベント会場（Hall A/B/C）",
+          "m": "lower",
+          "x": 85,
+          "y": 57.5
+        }
+      }
+    ]
+  },
+  "checklist": [
+    {
+      "g": "出発前",
+      "items": [
+        "パスポート（残存期間の確認）",
+        "ESTA 承認済み",
+        "eSIM または海外ローミング設定",
+        "海外旅行保険",
+        "クレジットカードの海外利用設定",
+        "現金 $100 程度",
+        "Moscone / Chase Center 周辺のオフライン地図をDL",
+        "航空会社・ホテルの各アプリにログイン確認"
+      ]
+    },
+    {
+      "g": "荷物",
+      "items": [
+        "電源タップ（コンセント争奪戦対策）",
+        "モバイルバッテリー（機内持込のみ）",
+        "羽織るもの（朝晩15℃）",
+        "歩きやすい靴",
+        "常備薬",
+        "洗面用具",
+        "戦利品を持ち帰る用の折りたたみバッグ",
+        "運動着・シューズ（宿にジムがあれば）"
+      ]
+    },
+    {
+      "g": "イベント用",
+      "items": [
+        "バッジ（Registration Hall で受け取り）",
+        "Arena Experience の権限を確認（8/30 Chase Center）",
+        "ポケモンセンターの購入リスト",
+        "Pin Rally 用の交換ピン",
+        "カード用のスリーブ・ケース"
+      ]
+    },
+    {
+      "g": "帰国前",
+      "items": [
+        "チェックアウト時刻の確認",
+        "忘れ物確認（充電器・アダプタ）",
+        "戦利品の重量確認"
+      ]
+    }
+  ],
+  "trip": {
+    "title": "San Francisco",
+    "sub": "PokémonXP & Worlds 2026",
+    "start": "",
+    "end": ""
+  }
+}
