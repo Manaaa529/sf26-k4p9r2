@@ -41,6 +41,11 @@ python3 scripts/build_shared.py   # → index.html（共有版・これをPages�
 **理由**: 海外で圏外・機内・地下でも開く必要がある。
 唯一の外部リンクは Google Maps の経路URLと Twitch（どちらもユーザーが明示的にタップしたとき）。
 
+例外は `assets/icon-180.png` のみ。iOS の apple-touch-icon は PNG の実ファイルでないと
+効かない（SVGは無視され、ページのスクショがアイコンになる）。読み込まれるのは
+「ホーム画面に追加」の時だけで、**ページ表示時のリクエストは増えない**。
+Service Worker は入れない。
+
 ### 2. localStorage のみ。サーバーもDBもアカウントもなし
 **理由**: 他人の宿泊先や予約番号を預からない設計にするため。
 運用コストもゼロ。ここを変えると責任の所在が変わるので、変更しないこと。
@@ -76,6 +81,8 @@ data/
 assets/
   overview / levels / ground / lower / ybg .webp   会場マップ5枚
   geo_generic.svg        街の位置関係図（共有版・宿名なし）
+  icon-180.png           ホーム画面アイコン（iOS用・実ファイルで配信）
+  icon-192/512.webp      同（Android manifest用・base64で埋め込む）
 private/                 ← .gitignore 対象。絶対にコミットしない
   trip.json              本人の全予定
   *_qr.png               乗船QR（有効なチケット）
@@ -83,6 +90,8 @@ private/                 ← .gitignore 対象。絶対にコミットしない
   geo.svg                街の位置関係図（本人用）。宿名・宿泊日・番地が入っている
   shiori_template.html   本人用テンプレート。予約番号を直書きしている箇所がある
   build_mine.py          本人用ビルド
+  make_icon.py           アイコン生成（Pillow必要）
+  pwcs_keyart.png        アイコンの元画像（公式キーアート）
 scripts/
   build_shared.py        共有版ビルド（公開される）
 ```
@@ -102,7 +111,8 @@ scripts/
 | `__PINS__` | ピン座標 |
 | `__GEO__` | 位置関係図のSVG（インライン） |
 | `__QR__` | 乗船QR（本人用のみ） |
-| `__ICON__` `__MANIFEST__` | PWA用（data URI） |
+| `__ICON__` | apple-touch-icon。共有版は `assets/icon-180.png`、本人用はdata URI |
+| `__MANIFEST__` | PWA manifest（data URI。アイコンは埋め込み） |
 | `__SETUP__` `__SETUPUI__` | setup.js / setup_ui.js（共有版のみ） |
 
 ---
@@ -194,5 +204,9 @@ LINEの内蔵ブラウザだとこのメニューが出ないので、案内に�
 知り合いに直接URLを渡す範囲で使う前提。**SNSで広く告知して配る場合は、
 自作の簡略マップに差し替えるか、公式のDLページへのリンクに置き換えること。**
 その判断はユーザーが行う。勝手に公開範囲を広げる提案をしない。
+
+ホーム画面アイコンも公式キーアート（`private/pwcs_keyart.png`）から切り出している。
+**アイコンは「そのアプリの正体」を示す位置にあるため、マップの埋め込みより誤認リスクが高い。**
+公開範囲を広げる場合は、マップと合わせてここも差し替えを検討すること。
 
 セットアップ画面の末尾に「ファンが個人的に作ったもの」の表記を入れてある。消さないこと。

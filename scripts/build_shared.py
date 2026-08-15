@@ -11,17 +11,20 @@ common=json.load(open("data/common.json",encoding="utf-8"))
 common["days"]=[]; common["bookings"]=[]
 pins=json.load(open("data/pins.json",encoding="utf-8"))
 geo=open("assets/geo_generic.svg",encoding="utf-8").read()
-icon=("data:image/svg+xml,"+urllib.parse.quote(
-  '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180">'
-  '<rect width="180" height="180" rx="40" fill="#17131F"/>'
-  '<text x="90" y="82" font-family="system-ui" font-size="52" font-weight="800" '
-  'fill="#F5C518" text-anchor="middle">SF</text>'
-  '<text x="90" y="126" font-family="system-ui" font-size="30" font-weight="700" '
-  'fill="#A97FE0" text-anchor="middle">2026</text></svg>'))
+# iOS の apple-touch-icon は PNG のみ。SVG は無視され、ページのスクショが使われてしまう。
+# data URI も確実でないため実ファイルを参照する。読み込まれるのは
+# 「ホーム画面に追加」の時だけなので、ページ表示時のリクエストは増えない。
+icon="assets/icon-180.png"
+# Android の manifest 用は埋め込む（ページ表示時のリクエストを増やさないため）。
+# PNGだと512が555KBになるので WebP にしてある。生成は private/make_icon.py。
+def webp_uri(size):
+    return ("data:image/webp;base64,"
+            +base64.b64encode(open(f"assets/icon-{size}.webp","rb").read()).decode())
 manifest=urllib.parse.quote(json.dumps({
   "name":"SF 2026 — 旅のしおり","short_name":"SF 2026","start_url":"./","display":"standalone",
   "background_color":"#17131F","theme_color":"#17131F",
-  "icons":[{"src":icon,"sizes":"180x180","type":"image/svg+xml"}]},ensure_ascii=False))
+  "icons":[{"src":webp_uri(192),"sizes":"192x192","type":"image/webp"},
+           {"src":webp_uri(512),"sizes":"512x512","type":"image/webp"}]},ensure_ascii=False))
 h=open("src/shared_template.html",encoding="utf-8").read()
 for k,v in [("__TRIP__",json.dumps(common,ensure_ascii=False)),
             ("__MAPS__",json.dumps(entries,ensure_ascii=False)),
