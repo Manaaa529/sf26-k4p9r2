@@ -180,6 +180,122 @@ const EVENT_DAYS = [
    ph:'決勝は Chase Center。Moscone ではないので移動が要ります。'}
 ];
 
+/* ============================================================
+   予定の名前から WCS 会場の場所を推測する
+   ============================================================ */
+
+/* 表記ゆれを吸収する。丸数字・記号・空白を落として比較用の文字列にする */
+function normSpot(s){
+  return String(s||'')
+    .replace(/[①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳]/g,'')
+    .replace(/[Ａ-Ｚａ-ｚ０-９]/g, c=>String.fromCharCode(c.charCodeAt(0)-0xFEE0))
+    .toLowerCase()
+    .replace(/é/g,'e')
+    .replace(/[\s　・･/／\-—–（）()【】\[\]「」『』,、。.]/g,'');
+}
+
+/* 場所の表示用。凡例の丸数字と補足の括弧を落とす（マップ紐づけ側は元の名前のまま） */
+function pinLabel(n){
+  return String(n||'')
+    .replace(/^[①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳]\s*/,'')
+    .replace(/（[^）]*）\s*$/,'')
+    .trim();
+}
+
+/* 日本語や略称からピンを引くための別名表。
+   pin は pins.json 内の名前の一部（normSpot して部分一致で探す）。
+   「夕食」「トイレ」のような一般語は入れないこと。会場外の予定まで
+   誤って会場に紐づけてしまうため。 */
+const SPOT_ALIAS = [
+  {pin:'Pokémon Center Outpost',    q:['アウトポスト','outpost']},
+  {pin:'Pokémon Center',            q:['ポケモンセンター','ポケセン','pokemoncenter']},
+  {pin:'Registration Hall',         q:['バッジ','レジストレーション','registration','受付証']},
+  {pin:'World Championships Stage', q:['worldsステージ','世界大会','championshipsstage']},
+  {pin:'PokémonXP Stage',           q:['xpステージ','pokemonxpstage']},
+  {pin:'Pokémon UNITE',             q:['ユナイト','unite']},
+  {pin:'Pokémon GO',                q:['ポケモンgo','ポケgo','pokemongo']},
+  {pin:'Video Game',                q:['ビデオゲーム','videogame','vgc']},
+  {pin:'Hall B / TCG',              q:['tcg','カードゲーム','トレカ']},
+  {pin:'Side Events',               q:['サイドイベント','sideevent']},
+  {pin:'Deck Check',                q:['デッキチェック','deckcheck']},
+  {pin:'Team Check',                q:['チームチェック','teamcheck']},
+  {pin:'Tournament Entry',          q:['トーナメント受付','大会受付','tournamententry']},
+  {pin:'Main Event Prize Pick-Up',  q:['賞品','prizepickup']},
+  {pin:'Pokémon Play Lab',          q:['プレイラボ','playlab']},
+  {pin:'30周年展示',                q:['30周年','三十周年','anniversary']},
+  {pin:'Hall D / LEGO',             q:['レゴ','lego']},
+  {pin:'Rayquaza Trolley',          q:['トロリー','trolley']},
+  {pin:'Rayquaza Road',             q:['レックウザロード','rayquazaroad']},
+  {pin:'Wharf Stage',               q:['ワーフステージ','wharfstage']},
+  {pin:'Santa Cruz Skateboards',    q:['スケートボード','スケボー','santacruz']},
+  {pin:'Yerba Buena Gardens',       q:['ヤーバブエナ','イエルバブエナ','ybg','yerbabuena']},
+  {pin:'ColourPop',                 q:['カラーポップ','colourpop']},
+  {pin:"Furfrou's Hair Salon",      q:['トリミアン','ヘアサロン','furfrou']},
+  {pin:'Flower Dome',               q:['フラワードーム','flowerdome']},
+  {pin:'Garden Stage',              q:['ガーデンステージ','gardenstage']},
+  {pin:'Garden Games',              q:['ガーデンゲーム','gardengames']},
+  {pin:'Squishmallows Slide',       q:['スクイッシュマロウ','squishmallows']},
+  {pin:'Pin Rally',                 q:['ピンラリー','pinrally','ピン交換']},
+  {pin:'Quiet Room',                q:['クワイエットルーム','quietroom']},
+  {pin:'First Aid',                 q:['救護','医務','firstaid']},
+  {pin:'North Lobby',               q:['ノースロビー','northlobby']},
+  {pin:'South Lobby',               q:['サウスロビー','southlobby']}
+];
+
+/* 会場マップに載っていない、街のスポット */
+const SPOT_CITY = [
+  {q:['チェイスセンター','chasecenter','決勝','championshipsunday','ファイナル'],
+   map:'chase', place:'Chase Center'}
+];
+
+/* 会場マップの全ピンを1本のリストにする（PINS はテンプレート側のグローバル） */
+function allPins(){
+  const out=[];
+  if(typeof PINS === 'undefined') return out;
+  Object.keys(PINS).forEach(m=>(PINS[m]||[]).forEach(p=>
+    out.push({m, x:p.x, y:p.y, name:p.name, cat:p.cat})));
+  return out;
+}
+
+/* 予定の名前から会場の場所を推測する。見つからなければ null */
+function findSpot(text){
+  const t = normSpot(text);
+  if(!t) return null;
+
+  for(const c of SPOT_CITY){
+    if(c.q.some(q=>t.includes(normSpot(q))))
+      return {spot:null, map:c.map, place:c.place};
+  }
+
+  const pins = allPins();
+  const pick = frag => {
+    const f = normSpot(frag);
+    return pins.find(p=>normSpot(p.name).includes(f));
+  };
+
+  for(const a of SPOT_ALIAS){
+    if(a.q.some(q=>t.includes(normSpot(q)))){
+      const p = pick(a.pin);
+      if(p) return {spot:{m:p.m, x:p.x, y:p.y, name:p.name}, map:'moscone', place:pinLabel(p.name)};
+    }
+  }
+
+  /* 別名に無ければ、ピン名そのものが書かれていないか見る（長い一致を優先）。
+     トイレ・飲食・インフォメーションは会場に何個もある設備で、
+     「トイレ休憩」のような予定名を誤って会場に紐づけてしまうので対象外
+     （ドロップダウンからの手動選択はできる） */
+  const GENERIC = p => p.cat==='wc' || p.cat==='food' || p.name==='インフォメーション';
+  let best=null;
+  pins.forEach(p=>{
+    if(GENERIC(p)) return;
+    const n=normSpot(p.name);
+    if(n.length>=3 && t.includes(n) && (!best || n.length>normSpot(best.name).length)) best=p;
+  });
+  if(best) return {spot:{m:best.m, x:best.x, y:best.y, name:best.name},
+                   map:'moscone', place:pinLabel(best.name)};
+  return null;
+}
+
 /* ---------- 自分で足した予定 ---------- */
 
 /* 時刻順に差し込む。先頭の時刻なし項目（その日の警告など）より前には入れない */
@@ -204,7 +320,8 @@ function addPlans(map){
     /* placeholder は消さない。イベント日の案内文はここに入っていて、
        予定を足したあとも読む価値がある（見出しだけ renderDay 側で切り替える） */
     const it = {t:p.time||'', type:'event', icon:p.icon||'📌', title:p.title,
-                place:p.place||'', note:p.note||'', mine:true};
+                place:p.place||'', note:p.note||'', mine:true,
+                spot:p.spot||null, map:p.map||''};
     if(p.time) insertByTime(d.items, it); else d.items.push(it);
   });
 }

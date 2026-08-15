@@ -196,6 +196,40 @@ function wireSetup(){
 const PLAN_ICONS = ['📌','🎫','🛍','🍽','🚕','📺'];
 let planIdx = null;          // 編集中の index。新規は null
 
+const MAP_LABEL = {overview:'キャンパス全体', ground:'Ground', lower:'Lower', ybg:'Yerba Buena'};
+const spotKey = s => s ? `${s.m}|${s.x}|${s.y}|${s.name}` : '';
+
+/* 会場ピンを地図ごとにまとめた <select> の中身。同名ピン（Pin Rally等）は1つにする */
+function spotOptions(cur){
+  const sel = spotKey(cur);
+  let h = `<option value="">（紐づけない）</option>`;
+  if(typeof PINS === 'undefined') return h;
+  Object.keys(PINS).forEach(m=>{
+    const seen = {};
+    const opts = (PINS[m]||[]).filter(p=>{
+      if(seen[p.name]) return false; seen[p.name]=1; return true;
+    });
+    if(!opts.length) return;
+    h += `<optgroup label="${MAP_LABEL[m]||m}">`;
+    opts.forEach(p=>{
+      const k = spotKey({m, x:p.x, y:p.y, name:p.name});
+      h += `<option value="${k.replace(/"/g,'&quot;')}"${k===sel?' selected':''}>${p.name}</option>`;
+    });
+    h += `</optgroup>`;
+  });
+  /* 保存済みの値が候補に無い場合も選択状態を保つ */
+  if(sel && !h.includes('selected'))
+    h += `<option value="${sel.replace(/"/g,'&quot;')}" selected>${cur.name}</option>`;
+  return h;
+}
+
+function parseSpot(val){
+  if(!val) return null;
+  const a = String(val).split('|');
+  if(a.length < 4) return null;
+  return {m:a[0], x:+a[1], y:+a[2], name:a.slice(3).join('|')};
+}
+
 function planEditorHTML(p, idx){
   p = p || {};
   const v = k => p[k]==null ? '' : String(p[k]).replace(/"/g,'&quot;');
@@ -232,6 +266,10 @@ function planEditorHTML(p, idx){
       <div class="f"><label for="p_place">場所（任意）</label>
         <input type="text" id="p_place" placeholder="例）Moscone West"
           value="${v('place')}" autocomplete="off"></div>
+      <div class="f"><label for="p_spot">会場マップの場所</label>
+        <select id="p_spot">${spotOptions(p.spot)}</select>
+        <p class="hint" id="p_spothint">予定の名前がWCS関連なら自動で選びます。
+        選んでおくと、その予定から会場マップの該当地点へ飛べます。</p></div>
       <div class="f"><label for="p_note">メモ（任意）</label>
         <input type="text" id="p_note" placeholder="集合場所、持ち物、同行者など"
           value="${v('note')}" autocomplete="off"></div>
@@ -276,6 +314,40 @@ function wirePlanEditor(){
     b.classList.add('on'); icon=b.dataset.icn;
   });
 
+  /* 予定の名前から会場の場所を拾う。
+     ユーザーが自分で選び直したあとは上書きしない */
+  const title=el.querySelector('#p_title'), place=el.querySelector('#p_place');
+  const spotSel=el.querySelector('#p_spot'), hint=el.querySelector('#p_spothint');
+  let autoMap = (planIdx==null ? '' : ((PROF.plans||[])[planIdx]||{}).map || '');
+  let touched = spotSel.value !== '';        // 既に紐づいているものは自動で動かさない
+  spotSel.onchange=()=>{
+    touched=true;
+    autoMap = spotSel.value ? 'moscone' : '';
+    const s0 = parseSpot(spotSel.value);
+    if(s0 && !place.value.trim()) place.value = pinLabel(s0.name);
+    hint.textContent = s0 ? 'この予定から会場マップへ飛べます。'
+                          : '会場マップとの紐づけを外しました。';
+  };
+
+  const guess=()=>{
+    if(touched) return;
+    const r = findSpot(title.value);
+    if(!r){ spotSel.value=''; autoMap='';
+      hint.textContent='予定の名前がWCS関連なら自動で選びます。'; return; }
+    autoMap = r.map || '';
+    if(r.spot){
+      const k = spotKey(r.spot);
+      if([...spotSel.options].some(o=>o.value===k)) spotSel.value=k;
+      hint.textContent=`「${pinLabel(r.spot.name)}」を自動で紐づけました。違うときは選び直してください。`;
+    } else {
+      spotSel.value='';
+      hint.textContent=`${r.place} と判定しました。会場マップ外なので道順のリンクだけ付きます。`;
+    }
+    if(!place.value.trim() && r.place) place.value = r.place;
+  };
+  title.addEventListener('input', guess);
+  if(planIdx==null && title.value) guess();
+
   el.querySelector('#pCancel').onclick=()=>closeSetup();
 
   const del = el.querySelector('#pDel');
@@ -287,9 +359,11 @@ function wirePlanEditor(){
 
   el.querySelector('#pSave').onclick=()=>{
     const g = id => (document.getElementById(id)||{}).value || '';
+    const spot = parseSpot(g('p_spot'));
     const p = {date:g('p_date'), time:g('p_time'), icon,
                title:g('p_title').trim(), place:g('p_place').trim(),
-               note:g('p_note').trim(), code:g('p_code').trim()};
+               note:g('p_note').trim(), code:g('p_code').trim(),
+               spot, map: spot ? 'moscone' : autoMap};
     if(!p.date){ toast('日付を入れてください'); return; }
     if(!p.title){ toast('予定の名前を入れてください'); return; }
 
