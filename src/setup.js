@@ -4,7 +4,7 @@
    ============================================================ */
 
 const PK = 'sf2026-profile';
-const PROFILE_V = 2;          // 保存データの構造バージョン
+const PROFILE_V = 3;          // 保存データの構造バージョン
 let PROF = null;
 
 /* 古い構造で保存されたデータを現行構造に寄せる。
@@ -19,6 +19,10 @@ function migrateProfile(p){
   if(v === 1){          // v2: 自分で足す予定（plans）を追加
     p.plans = [];
     v = 2;
+  }
+  if(v === 2){          // v3: ポケモンセンターの枠（1人1回）を追加
+    p.pc = null;
+    v = 3;
   }
   p.v = v;
   if(!Array.isArray(p.plans)) p.plans = [];   // 未知の版から来た場合の保険
@@ -53,6 +57,68 @@ const pad = n => String(n).padStart(2,'0');
 const hhmm = m => `${pad(Math.floor(((m%1440)+1440)%1440/60))}:${pad(((m%60)+60)%60)}`;
 const mins = t => { const [a,b]=String(t).split(':').map(Number); return a*60+(b||0); };
 
+/* ---------- 予約枠（1人1回・1時間） ----------
+   バッジ受け取りとポケモンセンターは、どちらも1時間の指定枠。
+   同じ形で扱えるようにここにまとめる。 */
+const SLOT_MIN = 60;
+const SLOTS = {
+  badge: {key:'badge', icon:'🎫', title:'バッジ受け取り',
+          place:'Registration Hall / Moscone West', pin:'Registration Hall',
+          note:`列は${EST_BADGE_QUEUE()}分見ておく`},
+  pc:    {key:'pc',    icon:'🛍', title:'ポケモンセンター',
+          place:'Moscone West', pin:'Pokémon Center',
+          note:'1人1回の枠。入場にはバッジが必要'}
+};
+function EST_BADGE_QUEUE(){ return `${EST.badgeQueue[0]}〜${EST.badgeQueue[1]}`; }
+
+/* 枠をタイムラインの項目にする */
+function slotItem(kind, s, notePrefix){
+  const d = SLOTS[kind];
+  const end = hhmm(mins(s.time) + SLOT_MIN);
+  const p = allPins().find(x=>normSpot(x.name).includes(normSpot(d.pin)));
+  return {t:s.time, type:'anchor', icon:d.icon, title:d.title,
+          place:d.place, map:'moscone', slot:kind,
+          spot: p ? {m:p.m, x:p.x, y:p.y, name:p.name} : null,
+          dur:`1時間枠（〜${end}）`,
+          note:(notePrefix||'') + d.note};
+}
+
+/* 枠を「その枠の日」のタイムラインに置く。
+   到着日のバッジだけは buildArrival が逆算に組み込むのでここでは触らない */
+function buildSlots(map){
+  const a = PROF.arrive || {};
+  ['badge','pc'].forEach(kind=>{
+    const s = PROF[kind];
+    if(!s || !s.time || !s.date) return;
+    if(kind==='badge' && s.date === a.date) return;
+
+    if(!map[s.date]){
+      const st = stayOn(s.date);
+      map[s.date] = {date:s.date, label:'フリー', base: st?st.name:'', items:[]};
+    }
+    const d = map[s.date];
+    insertByTime(d.items, slotItem(kind, s));
+    if(!d.anchor) d.anchor = {time:s.time, text:SLOTS[kind].title};
+  });
+
+  /* ポケセンの入場にはバッジが要る。順番が逆・枠が重なっている場合に知らせる */
+  const b = PROF.badge, c = PROF.pc;
+  if(b && b.time && b.date && c && c.time && c.date){
+    const bAt = `${b.date} ${b.time}`, cAt = `${c.date} ${c.time}`;
+    let w = null;
+    if(cAt < bAt){
+      w = {t:'', type:'warn', icon:'⚠', title:'ポケセンの枠がバッジ受け取りより前です',
+           note:`ポケモンセンターの入場にはバッジが必要です。バッジを${b.date} ${b.time}に`
+              + `受け取る予定なら、この枠には入れません。どちらかを取り直してください。`};
+    } else if(b.date === c.date && mins(c.time) < mins(b.time) + SLOT_MIN){
+      w = {t:'', type:'warn', icon:'⚠', title:'バッジとポケセンの枠が重なっています',
+           note:`バッジ受け取りは${b.time}から1時間枠です。列に${EST_BADGE_QUEUE()}分かかることを考えると、`
+              + `ポケセンの${c.time}には間に合わない可能性があります。`};
+    }
+    if(w && map[c.date]) map[c.date].items.unshift(w);
+  }
+}
+
 /* 宿を日付から引く（複数登録に対応） */
 function stayOn(date){
   if(!PROF || !PROF.stays || !PROF.stays.length) return null;
@@ -63,7 +129,10 @@ function stayOn(date){
 /* ---------- 到着日のタイムラインを逆算で組む ---------- */
 function buildArrival(){
   const a = PROF.arrive;               // {date, flight, time}
-  const b = PROF.badge;                // {date, time} 省略可
+  /* 到着日と同じ日の枠だけを逆算に組み込む。別の日の枠は buildSlots が
+     その日のタイムラインに置く（以前は日付を見ずに到着日へ描いていた） */
+  const b = (PROF.badge && PROF.badge.time && PROF.badge.date === a.date) ? PROF.badge : null;
+  const pcSlot = PROF.pc && PROF.pc.time ? PROF.pc : null;
   const stay = stayOn(a.date);
   const walk = stay ? (+stay.walk || 10) : 10;
   const items = [];
@@ -101,12 +170,15 @@ function buildArrival(){
     }
     const leave = badge - walk;
     items.push({t:hhmm(leave), type:'move', title:'宿を出る', dur:`徒歩${walk}分`});
-    items.push({t:b.time, type:'anchor', icon:'🎫', title:'バッジ受け取り',
-      place:'Registration Hall / Moscone West', map:'moscone',
-      note:`今日の基準点。列は${EST.badgeQueue[0]}〜${EST.badgeQueue[1]}分見ておく`});
-    const pc = badge + EST.badgeQueue[1] + EST.westToPC;
-    items.push({t:hhmm(pc), type:'event', icon:'🛍', title:'Pokémon Center',
-      place:'Moscone West', map:'moscone', note:'入場にはバッジが必須'});
+    items.push(slotItem('badge', b, '今日の基準点。'));
+    /* ポケセンの枠を登録していれば buildSlots が実際の時刻で置くので、
+       ここでの見込み（バッジのあと立ち寄る想定）は出さない */
+    if(!pcSlot){
+      const pc = badge + EST.badgeQueue[1] + EST.westToPC;
+      items.push({t:hhmm(pc), type:'event', icon:'🛍', title:'Pokémon Center',
+        place:'Moscone West', map:'moscone',
+        note:'入場にはバッジが必須。枠を予約したら「準備」タブで登録してください'});
+    }
   }
   items.push({t:'', type:'free', title:'夕方以降フリー',
     note:'時差ボケがくる時間帯。無理せず早めに休むのも手'});
@@ -121,7 +193,7 @@ function buildArrival(){
   }
   return {
     date:a.date, label:'到着', base: stay ? stay.name : '',
-    anchor: (b&&b.time) ? {time:b.time, text:'Registration Hall 到着'} : null,
+    anchor: b ? {time:b.time, text:'Registration Hall 到着'} : null,
     items, fallback: fb
   };
 }
@@ -359,6 +431,7 @@ function buildDays(){
     title:'GO：PokémonXP配信を30分見る', icon:'📺',
     note:'twitch.tv/PokemonXP を30分視聴で Cosmog-chu のリサーチ。この日だけの条件'});
 
+  buildSlots(map); // 予約枠を各枠の日に置く
   addPlans(map);   // 空白日を埋める前に入れる（予定だけの日も1日として立てるため）
 
   /* 滞在期間の空白日を埋める */
@@ -392,6 +465,13 @@ function buildBookings(){
     detail:[s.from&&`${s.from} 〜 ${s.to||''}`, s.addr].filter(Boolean).join(' ／ '),
     code:s.code||'', note:`Mosconeまで徒歩${s.walk||10}分`,
     dir:s.lat?null:s.name}));
+  ['badge','pc'].forEach(kind=>{
+    const s = PROF[kind]; if(!s || !s.time) return;
+    const d = SLOTS[kind];
+    out.push({cat:'予約枠', name:`${d.icon} ${d.title}`,
+      detail:`${s.date}　${s.time}〜${hhmm(mins(s.time)+SLOT_MIN)}（1時間枠）`,
+      note:d.place, map:'moscone'});
+  });
   (PROF.extras||[]).forEach(x=>out.push({cat:'その他', name:x.name,
     detail:x.detail||'', code:x.code||'', note:x.note||''}));
   /* 予約番号を入れた予定は、ここにも控えとして出す */

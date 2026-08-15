@@ -591,7 +591,7 @@ const TRIP = {"places": {"moscone": {"name": "Moscone Center", "addr": "747 Howa
    ============================================================ */
 
 const PK = 'sf2026-profile';
-const PROFILE_V = 2;          // 保存データの構造バージョン
+const PROFILE_V = 3;          // 保存データの構造バージョン
 let PROF = null;
 
 /* 古い構造で保存されたデータを現行構造に寄せる。
@@ -606,6 +606,10 @@ function migrateProfile(p){
   if(v === 1){          // v2: 自分で足す予定（plans）を追加
     p.plans = [];
     v = 2;
+  }
+  if(v === 2){          // v3: ポケモンセンターの枠（1人1回）を追加
+    p.pc = null;
+    v = 3;
   }
   p.v = v;
   if(!Array.isArray(p.plans)) p.plans = [];   // 未知の版から来た場合の保険
@@ -640,6 +644,68 @@ const pad = n => String(n).padStart(2,'0');
 const hhmm = m => `${pad(Math.floor(((m%1440)+1440)%1440/60))}:${pad(((m%60)+60)%60)}`;
 const mins = t => { const [a,b]=String(t).split(':').map(Number); return a*60+(b||0); };
 
+/* ---------- 予約枠（1人1回・1時間） ----------
+   バッジ受け取りとポケモンセンターは、どちらも1時間の指定枠。
+   同じ形で扱えるようにここにまとめる。 */
+const SLOT_MIN = 60;
+const SLOTS = {
+  badge: {key:'badge', icon:'🎫', title:'バッジ受け取り',
+          place:'Registration Hall / Moscone West', pin:'Registration Hall',
+          note:`列は${EST_BADGE_QUEUE()}分見ておく`},
+  pc:    {key:'pc',    icon:'🛍', title:'ポケモンセンター',
+          place:'Moscone West', pin:'Pokémon Center',
+          note:'1人1回の枠。入場にはバッジが必要'}
+};
+function EST_BADGE_QUEUE(){ return `${EST.badgeQueue[0]}〜${EST.badgeQueue[1]}`; }
+
+/* 枠をタイムラインの項目にする */
+function slotItem(kind, s, notePrefix){
+  const d = SLOTS[kind];
+  const end = hhmm(mins(s.time) + SLOT_MIN);
+  const p = allPins().find(x=>normSpot(x.name).includes(normSpot(d.pin)));
+  return {t:s.time, type:'anchor', icon:d.icon, title:d.title,
+          place:d.place, map:'moscone', slot:kind,
+          spot: p ? {m:p.m, x:p.x, y:p.y, name:p.name} : null,
+          dur:`1時間枠（〜${end}）`,
+          note:(notePrefix||'') + d.note};
+}
+
+/* 枠を「その枠の日」のタイムラインに置く。
+   到着日のバッジだけは buildArrival が逆算に組み込むのでここでは触らない */
+function buildSlots(map){
+  const a = PROF.arrive || {};
+  ['badge','pc'].forEach(kind=>{
+    const s = PROF[kind];
+    if(!s || !s.time || !s.date) return;
+    if(kind==='badge' && s.date === a.date) return;
+
+    if(!map[s.date]){
+      const st = stayOn(s.date);
+      map[s.date] = {date:s.date, label:'フリー', base: st?st.name:'', items:[]};
+    }
+    const d = map[s.date];
+    insertByTime(d.items, slotItem(kind, s));
+    if(!d.anchor) d.anchor = {time:s.time, text:SLOTS[kind].title};
+  });
+
+  /* ポケセンの入場にはバッジが要る。順番が逆・枠が重なっている場合に知らせる */
+  const b = PROF.badge, c = PROF.pc;
+  if(b && b.time && b.date && c && c.time && c.date){
+    const bAt = `${b.date} ${b.time}`, cAt = `${c.date} ${c.time}`;
+    let w = null;
+    if(cAt < bAt){
+      w = {t:'', type:'warn', icon:'⚠', title:'ポケセンの枠がバッジ受け取りより前です',
+           note:`ポケモンセンターの入場にはバッジが必要です。バッジを${b.date} ${b.time}に`
+              + `受け取る予定なら、この枠には入れません。どちらかを取り直してください。`};
+    } else if(b.date === c.date && mins(c.time) < mins(b.time) + SLOT_MIN){
+      w = {t:'', type:'warn', icon:'⚠', title:'バッジとポケセンの枠が重なっています',
+           note:`バッジ受け取りは${b.time}から1時間枠です。列に${EST_BADGE_QUEUE()}分かかることを考えると、`
+              + `ポケセンの${c.time}には間に合わない可能性があります。`};
+    }
+    if(w && map[c.date]) map[c.date].items.unshift(w);
+  }
+}
+
 /* 宿を日付から引く（複数登録に対応） */
 function stayOn(date){
   if(!PROF || !PROF.stays || !PROF.stays.length) return null;
@@ -650,7 +716,10 @@ function stayOn(date){
 /* ---------- 到着日のタイムラインを逆算で組む ---------- */
 function buildArrival(){
   const a = PROF.arrive;               // {date, flight, time}
-  const b = PROF.badge;                // {date, time} 省略可
+  /* 到着日と同じ日の枠だけを逆算に組み込む。別の日の枠は buildSlots が
+     その日のタイムラインに置く（以前は日付を見ずに到着日へ描いていた） */
+  const b = (PROF.badge && PROF.badge.time && PROF.badge.date === a.date) ? PROF.badge : null;
+  const pcSlot = PROF.pc && PROF.pc.time ? PROF.pc : null;
   const stay = stayOn(a.date);
   const walk = stay ? (+stay.walk || 10) : 10;
   const items = [];
@@ -688,12 +757,15 @@ function buildArrival(){
     }
     const leave = badge - walk;
     items.push({t:hhmm(leave), type:'move', title:'宿を出る', dur:`徒歩${walk}分`});
-    items.push({t:b.time, type:'anchor', icon:'🎫', title:'バッジ受け取り',
-      place:'Registration Hall / Moscone West', map:'moscone',
-      note:`今日の基準点。列は${EST.badgeQueue[0]}〜${EST.badgeQueue[1]}分見ておく`});
-    const pc = badge + EST.badgeQueue[1] + EST.westToPC;
-    items.push({t:hhmm(pc), type:'event', icon:'🛍', title:'Pokémon Center',
-      place:'Moscone West', map:'moscone', note:'入場にはバッジが必須'});
+    items.push(slotItem('badge', b, '今日の基準点。'));
+    /* ポケセンの枠を登録していれば buildSlots が実際の時刻で置くので、
+       ここでの見込み（バッジのあと立ち寄る想定）は出さない */
+    if(!pcSlot){
+      const pc = badge + EST.badgeQueue[1] + EST.westToPC;
+      items.push({t:hhmm(pc), type:'event', icon:'🛍', title:'Pokémon Center',
+        place:'Moscone West', map:'moscone',
+        note:'入場にはバッジが必須。枠を予約したら「準備」タブで登録してください'});
+    }
   }
   items.push({t:'', type:'free', title:'夕方以降フリー',
     note:'時差ボケがくる時間帯。無理せず早めに休むのも手'});
@@ -708,7 +780,7 @@ function buildArrival(){
   }
   return {
     date:a.date, label:'到着', base: stay ? stay.name : '',
-    anchor: (b&&b.time) ? {time:b.time, text:'Registration Hall 到着'} : null,
+    anchor: b ? {time:b.time, text:'Registration Hall 到着'} : null,
     items, fallback: fb
   };
 }
@@ -946,6 +1018,7 @@ function buildDays(){
     title:'GO：PokémonXP配信を30分見る', icon:'📺',
     note:'twitch.tv/PokemonXP を30分視聴で Cosmog-chu のリサーチ。この日だけの条件'});
 
+  buildSlots(map); // 予約枠を各枠の日に置く
   addPlans(map);   // 空白日を埋める前に入れる（予定だけの日も1日として立てるため）
 
   /* 滞在期間の空白日を埋める */
@@ -979,6 +1052,13 @@ function buildBookings(){
     detail:[s.from&&`${s.from} 〜 ${s.to||''}`, s.addr].filter(Boolean).join(' ／ '),
     code:s.code||'', note:`Mosconeまで徒歩${s.walk||10}分`,
     dir:s.lat?null:s.name}));
+  ['badge','pc'].forEach(kind=>{
+    const s = PROF[kind]; if(!s || !s.time) return;
+    const d = SLOTS[kind];
+    out.push({cat:'予約枠', name:`${d.icon} ${d.title}`,
+      detail:`${s.date}　${s.time}〜${hhmm(mins(s.time)+SLOT_MIN)}（1時間枠）`,
+      note:d.place, map:'moscone'});
+  });
   (PROF.extras||[]).forEach(x=>out.push({cat:'その他', name:x.name,
     detail:x.detail||'', code:x.code||'', note:x.note||''}));
   /* 予約番号を入れた予定は、ここにも控えとして出す */
@@ -1051,10 +1131,20 @@ function setupHTML(p){
     <div class="su-sec">
       <h2>バッジ受け取り</h2>
       <p class="hint">予約した枠を入れると、そこを基準点にして出発時刻を逆算します。
-      まだ決まっていなければ空のままで大丈夫です。</p>
+      1時間枠として扱います。まだ決まっていなければ空のままで大丈夫です。</p>
       <div class="row">
-        ${fld('日付','b_date','','2026-08-26','date')}
-        ${fld('時刻','b_time','','','time')}
+        ${fld('日付','b_date','', (p.badge&&p.badge.date)||'2026-08-26','date')}
+        ${fld('開始時刻','b_time','', p.badge&&p.badge.time,'time')}
+      </div>
+    </div>
+
+    <div class="su-sec">
+      <h2>ポケモンセンター</h2>
+      <p class="hint">1人1回の指定枠です。こちらも1時間枠。入場にはバッジが要るので、
+      バッジより前の枠になっていれば警告を出します。</p>
+      <div class="row">
+        ${fld('日付','c_date','', (p.pc&&p.pc.date)||'2026-08-26','date')}
+        ${fld('開始時刻','c_time','', p.pc&&p.pc.time,'time')}
       </div>
     </div>
 
@@ -1115,6 +1205,7 @@ function readSetup(){
     depart:{date:g('d_date'), time:g('d_time'), flight:g('d_flight').trim()},
     stays: stays.length ? stays : [{name:'宿', walk:10}],
     badge: g('b_time') ? {date:g('b_date'), time:g('b_time')} : null,
+    pc:    g('c_time') ? {date:g('c_date'), time:g('c_time')} : null,
     extras: (PROF && PROF.extras) || [],
     plans : (PROF && PROF.plans)  || []    // 自分で足した予定は消さない
   };
@@ -1129,6 +1220,10 @@ function validate(p){
   if(!p.stays.length || !p.stays[0].name) e.push('宿の名前を入れてください');
   if(p.badge && p.badge.time && p.badge.date < p.arrive.date)
     e.push('バッジ受け取りが到着日より前になっています');
+  if(p.pc && p.pc.time && p.pc.date < p.arrive.date)
+    e.push('ポケモンセンターの枠が到着日より前になっています');
+  if(p.pc && p.pc.time && p.depart.date && p.pc.date > p.depart.date)
+    e.push('ポケモンセンターの枠が帰国日より後になっています');
   return e;
 }
 
@@ -1386,62 +1481,77 @@ function wirePlanEditor(){
   };
 }
 
-/* ---------- バッジ枠だけを直す ---------- */
-function badgeEditorHTML(){
-  const b = (PROF && PROF.badge) || {};
-  const v = k => b[k]==null ? '' : String(b[k]).replace(/"/g,'&quot;');
+/* ---------- 予約枠（バッジ／ポケセン）を直す ---------- */
+
+const SLOT_UI = {
+  badge:{h1:'バッジ受け取り',
+    lead:'予約した枠を入れると、そこを基準点にして宿を出る時刻を逆算します。'
+        +'間に合わない時間になっていれば警告を出します。'},
+  pc:{h1:'ポケモンセンター',
+    lead:'1人1回の指定枠です。入れておくと日程に1時間枠として並びます。'
+        +'入場にはバッジが要るので、バッジ受け取りより前の枠になっていれば警告を出します。'}
+};
+
+function slotEditorHTML(kind){
+  const s = (PROF && PROF[kind]) || {};
+  const u = SLOT_UI[kind];
+  const v = k => s[k]==null ? '' : String(s[k]).replace(/"/g,'&quot;');
   return `
   <div class="su-wrap">
     <div class="su-head">
       <div class="su-kicker">SF 2026</div>
-      <h1>バッジ受け取り</h1>
-      <p>予約した枠を入れると、そこを基準点にして宿を出る時刻を逆算します。
-      間に合わない時間になっていれば警告を出します。</p>
+      <h1>${u.h1}</h1>
+      <p>${u.lead}</p>
     </div>
     <div class="su-sec">
       <h2>予約した枠</h2>
       <div class="row">
-        <div class="f"><label for="b2_date">日付</label>
-          <input type="date" id="b2_date"
+        <div class="f"><label for="s_date">日付</label>
+          <input type="date" id="s_date"
             value="${v('date') || (PROF && PROF.arrive ? PROF.arrive.date : '')}"></div>
-        <div class="f"><label for="b2_time">時刻</label>
-          <input type="time" id="b2_time" value="${v('time')}"></div>
+        <div class="f"><label for="s_time">開始時刻</label>
+          <input type="time" id="s_time" value="${v('time')}"></div>
       </div>
-      <p class="hint">まだ決まっていなければ空のままで大丈夫です。</p>
+      <p class="hint">1時間枠として扱います。まだ決まっていなければ空のままで大丈夫です。</p>
     </div>
     <div class="su-foot">
-      <button class="su-go" id="bSave">保存する</button>
-      ${b.time ? '<button class="su-danger" id="bClear">枠を取り消す</button>' : ''}
-      <button class="su-cancel" id="bCancel">やめる</button>
+      <button class="su-go" id="sSave">保存する</button>
+      ${s.time ? '<button class="su-danger" id="sClear">枠を取り消す</button>' : ''}
+      <button class="su-cancel" id="sCancel">やめる</button>
     </div>
   </div>`;
 }
 
-function openBadgeEditor(){
+function openSlotEditor(kind){
   const el=document.getElementById('setup');
-  el.innerHTML=badgeEditorHTML();
+  el.innerHTML=slotEditorHTML(kind);
   el.classList.add('on');
   document.body.style.overflow='hidden';
+  const name = SLOT_UI[kind].h1;
 
-  el.querySelector('#bCancel').onclick=()=>closeSetup();
-  const cl = el.querySelector('#bClear');
+  el.querySelector('#sCancel').onclick=()=>closeSetup();
+  const cl = el.querySelector('#sClear');
   if(cl) cl.onclick=()=>{
-    PROF.badge=null; saveProfile(); refreshAll(); closeSetup();
-    toast('バッジ枠を取り消しました');
+    PROF[kind]=null; saveProfile(); refreshAll(); closeSetup();
+    toast(name+'の枠を取り消しました');
   };
-  el.querySelector('#bSave').onclick=()=>{
+  el.querySelector('#sSave').onclick=()=>{
     const g = id => (document.getElementById(id)||{}).value || '';
-    const t=g('b2_time'), d=g('b2_date');
+    const t=g('s_time'), d=g('s_date');
     if(t && !d){ toast('日付を入れてください'); return; }
-    if(t && d < PROF.arrive.date){ toast('バッジ受け取りが到着日より前になっています'); return; }
-    PROF.badge = t ? {date:d, time:t} : null;
+    if(t && d < PROF.arrive.date){ toast(name+'の枠が到着日より前になっています'); return; }
+    if(t && d > PROF.depart.date){ toast(name+'の枠が帰国日より後になっています'); return; }
+    PROF[kind] = t ? {date:d, time:t} : null;
     saveProfile(); refreshAll();
     if(t) curDate = d;
     renderDtabs(); renderDay();
     closeSetup(); go('day'); window.scrollTo(0,0);
-    toast(t ? 'バッジ枠を保存しました' : 'バッジ枠を取り消しました');
+    toast(t ? name+'の枠を保存しました' : name+'の枠を取り消しました');
   };
 }
+
+/* 旧名。「準備」タブから呼ばれていた */
+const openBadgeEditor = () => openSlotEditor('badge');
 
 /* 現在地を宿の座標として記録する（任意） */
 function pinCurrentStay(idx){
@@ -1836,10 +1946,12 @@ function renderPrep(){
       帰 <b>${esc(PROF.depart.date)} ${esc(PROF.depart.time)}</b>${
         PROF.depart.flight?'（'+esc(PROF.depart.flight)+'）':''}<br>
       宿 ${st||'—'}<br>
-      バッジ ${PROF.badge&&PROF.badge.time?`<b>${esc(PROF.badge.date)} ${esc(PROF.badge.time)}</b>`:'未設定'}
+      バッジ ${PROF.badge&&PROF.badge.time?`<b>${esc(PROF.badge.date)} ${esc(PROF.badge.time)}</b>〜1時間`:'未設定'}<br>
+      ポケセン ${PROF.pc&&PROF.pc.time?`<b>${esc(PROF.pc.date)} ${esc(PROF.pc.time)}</b>〜1時間`:'未設定'}
       </div><div class="cb">
       <button class="pri" id="cfgEdit">便と宿を直す</button>
       <button id="badgeEdit">バッジ枠を直す</button>
+      <button id="pcEdit">ポケセン枠を直す</button>
       ${(PROF.stays||[]).map((x,i)=>
         `<button data-pin="${i}">${esc(x.name)}の位置を記録</button>`).join('')}
       </div></div>`;
@@ -1886,7 +1998,8 @@ function renderPrep(){
   h+='</section>';
   $('v-prep').innerHTML=h;
   const ed=$('cfgEdit'); if(ed) ed.onclick=()=>openSetup(PROF);
-  const be=$('badgeEdit'); if(be) be.onclick=()=>openBadgeEditor();
+  const be=$('badgeEdit'); if(be) be.onclick=()=>openSlotEditor('badge');
+  const pe=$('pcEdit');    if(pe) pe.onclick=()=>openSlotEditor('pc');
   const pa=$('planAdd'); if(pa) pa.onclick=()=>openPlanEditor(null);
   $('v-prep').querySelectorAll('[data-pe]').forEach(b=>
     b.onclick=()=>openPlanEditor(+b.dataset.pe));

@@ -944,10 +944,12 @@ function renderPrep(){
       帰 <b>${esc(PROF.depart.date)} ${esc(PROF.depart.time)}</b>${
         PROF.depart.flight?'（'+esc(PROF.depart.flight)+'）':''}<br>
       宿 ${st||'—'}<br>
-      バッジ ${PROF.badge&&PROF.badge.time?`<b>${esc(PROF.badge.date)} ${esc(PROF.badge.time)}</b>`:'未設定'}
+      バッジ ${PROF.badge&&PROF.badge.time?`<b>${esc(PROF.badge.date)} ${esc(PROF.badge.time)}</b>〜1時間`:'未設定'}<br>
+      ポケセン ${PROF.pc&&PROF.pc.time?`<b>${esc(PROF.pc.date)} ${esc(PROF.pc.time)}</b>〜1時間`:'未設定'}
       </div><div class="cb">
       <button class="pri" id="cfgEdit">便と宿を直す</button>
       <button id="badgeEdit">バッジ枠を直す</button>
+      <button id="pcEdit">ポケセン枠を直す</button>
       ${(PROF.stays||[]).map((x,i)=>
         `<button data-pin="${i}">${esc(x.name)}の位置を記録</button>`).join('')}
       </div></div>`;
@@ -994,7 +996,8 @@ function renderPrep(){
   h+='</section>';
   $('v-prep').innerHTML=h;
   const ed=$('cfgEdit'); if(ed) ed.onclick=()=>openSetup(PROF);
-  const be=$('badgeEdit'); if(be) be.onclick=()=>openBadgeEditor();
+  const be=$('badgeEdit'); if(be) be.onclick=()=>openSlotEditor('badge');
+  const pe=$('pcEdit');    if(pe) pe.onclick=()=>openSlotEditor('pc');
   const pa=$('planAdd'); if(pa) pa.onclick=()=>openPlanEditor(null);
   $('v-prep').querySelectorAll('[data-pe]').forEach(b=>
     b.onclick=()=>openPlanEditor(+b.dataset.pe));
