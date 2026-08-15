@@ -263,11 +263,11 @@ v1 として扱い、読み込み時に書き戻す。構造を変えるとき�
 共有版テンプレートに `Cache-Control: no-cache, must-revalidate` 等のmetaを追加。
 **Service Worker は入れないこと**（入れると更新が届かなくなる）。
 
-### C. 実機での確認（デプロイ後すぐ）
-位置情報とコンパスは HTTPS でないと動かないため、まだ一度もテストできていない。
-- 「🧭 方角と距離」で許可ダイアログが出るか
-- iOS で `DeviceOrientationEvent.requestPermission` が通り、矢印が端末の向きに追従するか
-- ホーム画面から起動したときにナビが隠れないか
+### C. 実機での確認 ✅ 2026-08-15 完了
+GitHub Pages（HTTPS）へのデプロイ後、実機で確認済み（利用者による）。
+- 「🧭 方角と距離」の許可ダイアログ
+- iOS の `DeviceOrientationEvent.requestPermission` と矢印の追従
+- ホーム画面から起動したときのナビ表示
 
 ### D. 情報が出たら反映するもの
 - UNITE の試合時間割（出たら日程タブへ）
